@@ -1,24 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.controller.MainController">
-  <left>
-    <VBox spacing="6" prefWidth="260" style="-fx-padding:10;">
-      <Label text="Chats" />
-      <ListView fx:id="chatList" prefHeight="150" />
-      <Label text="Groups" />
-      <ListView fx:id="groupList" prefHeight="120" />
-      <Label text="Channels" />
-      <ListView fx:id="channelList" prefHeight="120" />
-    </VBox>
-  </left>
-  <center>
-    <VBox spacing="6" style="-fx-padding:10;">
-      <HBox spacing="6">
-        <TextField fx:id="searchField" promptText="Search messages..." HBox.hgrow="ALWAYS"/>
-        <Button text="Search" onAction="#onSearch"/>
-      </HBox>
-      <ListView fx:id="searchResults" prefHeight="120"/>
-    </VBox>
-  </center>
-</BorderPane>
+
+<StackPane fx:id="rootPane" styleClass="background-pane" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.controller.MainController">
+  <VBox style="-fx-padding: 20;">
+    <SplitPane dividerPositions="0.35" styleClass="glass-pane" VBox.vgrow="ALWAYS">
+      <items>
+        <BorderPane styleClass="sidebar" maxWidth="500" minWidth="300">
+          <top>
+            <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 10 15;">
+              <MenuBar style="-fx-background-color: transparent;">
+                <Menu text="☰">
+                  <MenuItem text="View Profile" onAction="#onViewProfile"/>
+                  <SeparatorMenuItem/>
+                  <Menu text="Change Theme">
+                    <MenuItem text="Day Theme" onAction="#setThemeDay"/>
+                  </Menu>
+                  <SeparatorMenuItem/>
+                  <MenuItem text="Logout" onAction="#onLogout"/>
+                </Menu>
+              </MenuBar>
+              <TextField fx:id="searchField" promptText="Search" styleClass="sidebar-search-field" HBox.hgrow="ALWAYS"/>
+            </HBox>
+          </top>
+          <center>
+            <ListView fx:id="chatList" styleClass="chat-list-view"/>
+          </center>
+        </BorderPane>
+        <BorderPane fx:id="chatViewPlaceholder" styleClass="chat-area"/>
+      </items>
+    </SplitPane>
+  </VBox>
+</StackPane>

@@ -1,147 +1,181 @@
 package com.telegramapp.controller;
 
+import com.telegramapp.App;
 import com.telegramapp.dao.ChannelDAO;
 import com.telegramapp.dao.ChatDAO;
 import com.telegramapp.dao.GroupDAO;
 import com.telegramapp.dao.UserDAO;
-import com.telegramapp.model.*;
-import com.telegramapp.service.NotificationService;
+import com.telegramapp.model.Channel;
+import com.telegramapp.model.GroupChat;
+import com.telegramapp.model.User;
 import com.telegramapp.util.FX;
+import javafx.animation.FadeTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.IOException;
-import java.sql.*;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MainController {
-    @FXML private ListView<String> chatList;
-    @FXML private ListView<String> groupList;
-    @FXML private ListView<String> channelList;
+    @FXML private StackPane rootPane;
+    @FXML private ListView<Object> chatList;
+    @FXML private BorderPane chatViewPlaceholder;
     @FXML private TextField searchField;
-    @FXML private ListView<String> searchResults;
 
     private User currentUser;
     private final GroupDAO groupDAO = new GroupDAO();
     private final ChannelDAO channelDAO = new ChannelDAO();
-    private final ChatDAO chatDAO = new ChatDAO();
     private final UserDAO userDAO = new UserDAO();
-    private NotificationService notificationService;
+    private final ChatDAO chatDAO = new ChatDAO();
 
     public void setCurrentUser(User u){
         this.currentUser = u;
-        // start notification service
-        notificationService = new NotificationService(u);
-        notificationService.start();
+        setTheme("theme-day");
+        setupChatList();
         loadUserData();
     }
 
+    private void setupChatList() {
+        chatList.setCellFactory(lv -> {
+            ListCell<Object> cell = new ListCell<>() {
+                @Override
+                protected void updateItem(Object item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setGraphic(null);
+                    } else if (item instanceof User) {
+                        setText(((User) item).getProfileName());
+                    } else if (item instanceof GroupChat) {
+                        setText(((GroupChat) item).getName());
+                    } else if (item instanceof Channel) {
+                        setText(((Channel) item).getName());
+                    }
+                }
+            };
+
+            // Create ContextMenu for deleting chats
+            ContextMenu contextMenu = new ContextMenu();
+            MenuItem deleteItem = new MenuItem("Delete Conversation");
+            deleteItem.setOnAction(event -> {
+                Object item = cell.getItem();
+                deleteConversation(item);
+            });
+            contextMenu.getItems().add(deleteItem);
+
+            cell.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
+                if (isNowEmpty) {
+                    cell.setContextMenu(null);
+                } else {
+                    cell.setContextMenu(contextMenu);
+                }
+            });
+            return cell;
+        });
+
+        chatList.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                openChat(newVal);
+            }
+        });
+    }
+
+    private void deleteConversation(Object item) {
+        // NOTE: This is a placeholder for the actual delete logic.
+        // In a real app, this would call a DAO method to delete messages or memberships.
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Are you sure you want to delete this conversation?", ButtonType.YES, ButtonType.NO);
+        alert.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.YES) {
+                chatList.getItems().remove(item);
+                chatViewPlaceholder.setCenter(null); // Clear the view
+                System.out.println("Deleted conversation with: " + item);
+            }
+        });
+    }
+
     private void loadUserData(){
-        chatList.getItems().clear(); groupList.getItems().clear(); channelList.getItems().clear();
-        FX.runAsync(() -> new Object[]{
-            groupDAO.listGroupsForUser(currentUser.getId()),
-            channelDAO.listAllChannels(),
-            fetchOtherUsers()
-        }, res -> {
-            @SuppressWarnings("unchecked") var groups = (List<GroupChat>) res[0];
-            @SuppressWarnings("unchecked") var channels = (List<Channel>) res[1];
-            @SuppressWarnings("unchecked") var users = (List<User>) res[2];
-            groupList.getItems().addAll(groups.stream().map(GroupChat::getName).toList());
-            channelList.getItems().addAll(channels.stream().map(Channel::getName).toList());
-            chatList.getItems().addAll(users.stream().map(User::getUsername).toList());
+        FX.runAsync(() -> {
+            List<GroupChat> groups = groupDAO.listGroupsForUser(currentUser.getId());
+            List<Channel> channels = channelDAO.listAllChannels();
+            List<User> users = userDAO.findAllUsersExcept(currentUser.getId());
+            return Stream.of(users, groups, channels)
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+        }, combinedList -> {
+            chatList.getItems().setAll(combinedList);
         }, Throwable::printStackTrace);
     }
 
-    private List<User> fetchOtherUsers(){
-        List<User> list = new ArrayList<>();
-        String sql = "SELECT id, username, profile_name FROM users WHERE id <> ? ORDER BY username";
-        try (Connection c = com.telegramapp.util.DB.getConnection(); PreparedStatement ps = c.prepareStatement(sql)){
-            ps.setObject(1, currentUser.getId());
-            try (ResultSet rs = ps.executeQuery()){
-                while (rs.next()){
-                    User u = new User();
-                    u.setId(rs.getObject("id", UUID.class));
-                    u.setUsername(rs.getString("username"));
-                    u.setProfileName(rs.getString("profile_name"));
-                    list.add(u);
-                }
-            }
-        } catch (Exception e){ e.printStackTrace(); }
-        return list;
-    }
-
-    @FXML public void onChatSelect(){
-        String username = chatList.getSelectionModel().getSelectedItem();
-        if (username==null) return;
-        FX.runAsync(() -> userDAO.findByUsername(username).orElse(null), other -> {
-            if (other==null) return;
-            UUID chatId = chatDAO.findOrCreatePrivateChat(currentUser.getId(), other.getId());
-            openChat(chatId, null, null);
-        }, Throwable::printStackTrace);
-    }
-
-    @FXML public void onGroupSelect(){
-        String name = groupList.getSelectionModel().getSelectedItem();
-        if (name==null) return;
-        FX.runAsync(() -> {
-            try (Connection c = com.telegramapp.util.DB.getConnection(); PreparedStatement ps = c.prepareStatement("SELECT id FROM groups WHERE name=?")){
-                ps.setString(1, name);
-                try (ResultSet rs = ps.executeQuery()){
-                    if (rs.next()) return rs.getObject(1, UUID.class);
-                }
-            }
-            return null;
-        }, groupId -> openChat(null, groupId, null), Throwable::printStackTrace);
-    }
-
-    @FXML public void onChannelSelect(){
-        String name = channelList.getSelectionModel().getSelectedItem();
-        if (name==null) return;
-        FX.runAsync(() -> {
-            try (Connection c = com.telegramapp.util.DB.getConnection(); PreparedStatement ps = c.prepareStatement("SELECT id FROM channels WHERE name=?")){
-                ps.setString(1, name);
-                try (ResultSet rs = ps.executeQuery()){
-                    if (rs.next()) return rs.getObject(1, UUID.class);
-                }
-            }
-            return null;
-        }, channelId -> openChat(null, null, channelId), Throwable::printStackTrace);
-    }
-
-    private void openChat(UUID privateChatId, UUID groupId, UUID channelId){
+    private void openChat(Object chatTarget) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
+            Parent chatRoot = loader.load();
+
+            // --- Add a fade-in animation ---
+            FadeTransition ft = new FadeTransition(Duration.millis(300), chatRoot);
+            ft.setFromValue(0.0);
+            ft.setToValue(1.0);
+            ft.play();
+
+            ChatController activeChatController = loader.getController();
+            activeChatController.setCurrentUser(currentUser);
+
+            if (chatTarget instanceof User) {
+                activeChatController.setPrivateChatTarget((User) chatTarget);
+            } else if (chatTarget instanceof GroupChat) {
+                activeChatController.setGroupId(((GroupChat) chatTarget).getId());
+            } else if (chatTarget instanceof Channel) {
+                activeChatController.setChannelId(((Channel) chatTarget).getId());
+            }
+
+            chatViewPlaceholder.setCenter(chatRoot);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void onViewProfile() {
+        // Placeholder for profile view logic
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Profile");
+        alert.setHeaderText(currentUser.getProfileName());
+        alert.setContentText("Username: " + currentUser.getUsername() + "\nStatus: Online");
+        alert.showAndWait();
+    }
+
+    @FXML
+    private void onLogout() {
+        try {
+            // Get the current stage
+            Stage stage = (Stage) rootPane.getScene().getWindow();
+
+            // Load the login screen
+            FXMLLoader loader = new FXMLLoader(App.class.getResource("/fxml/login.fxml"));
             Scene scene = new Scene(loader.load());
-            ChatController cc = loader.getController();
-            cc.setCurrentUser(currentUser);
-            if (privateChatId!=null) cc.setPrivateChatId(privateChatId);
-            else if (groupId!=null) cc.setGroupId(groupId);
-            else cc.setChannelId(channelId);
-            Stage st = (Stage) chatList.getScene().getWindow();
-            st.setScene(scene); st.show();
-        } catch (IOException e){ e.printStackTrace(); }
+            scene.getStylesheets().add(App.class.getResource("/css/styles.css").toExternalForm());
+
+            stage.setScene(scene);
+            stage.setTitle("Telegram Clone - Login");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    @FXML public void onSearch(){
-        String q = searchField.getText();
-        if (q==null || q.isBlank()) return;
-        FX.runAsync(() -> new com.telegramapp.dao.MessageDAO().searchMessages(q, currentUser.getId(), 50),
-                list -> {
-                    searchResults.getItems().clear();
-                    for (com.telegramapp.model.Message m : list){
-                        String label = String.format("%s | %s | %s", m.getTimestamp(), m.getSenderId(), m.getContent()==null?"[image]":m.getContent());
-                        searchResults.getItems().add(label);
-                    }
-                }, Throwable::printStackTrace);
+    @FXML private void setTheme(String theme) {
+        rootPane.getStyleClass().removeIf(s -> s.startsWith("theme-"));
+        rootPane.getStyleClass().add(theme);
     }
-
-    @FXML public void onSearchResultClick(){
-        String sel = searchResults.getSelectionModel().getSelectedItem();
-        if (sel==null) return;
-        // Not implementing precise mapping UI->chat in this simple view; user can use info to navigate manually.
-    }
+    @FXML private void setThemeDay() { setTheme("theme-day"); }
 }

@@ -1,13 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<VBox spacing="6" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.controller.ChatController">
-  <Label fx:id="chatTitle" text="Private Chat" style="-fx-font-weight:bold; -fx-font-size:14px;" />
-  <Label fx:id="typingLabel" text="" style="-fx-font-style:italic; -fx-font-size:11px;" />
-  <ListView fx:id="messageList" prefHeight="420" />
-  <HBox spacing="6" alignment="CENTER_LEFT">
-    <TextField fx:id="messageField" HBox.hgrow="ALWAYS" promptText="Type a message" />
-    <Button fx:id="attachButton" text="Attach" onAction="#onAttach" />
-    <Button fx:id="sendButton" text="Send" onAction="#onSend" />
-  </HBox>
-</VBox>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.controller.ChatController">
+  <top>
+    <HBox alignment="CENTER_LEFT" spacing="15" styleClass="chat-header">
+      <VBox HBox.hgrow="ALWAYS">
+        <Label fx:id="chatTitle" styleClass="chat-title" text="Chat Title"/>
+        <Label fx:id="typingLabel" styleClass="chat-subtitle" text="online"/>
+      </VBox>
+      <Button text="⋮" styleClass="icon-button" style="-fx-font-size: 18px;"/>
+    </HBox>
+  </top>
+
+  <center>
+    <ListView fx:id="messageList" styleClass="message-list-view"/>
+  </center>
+
+  <bottom>
+    <HBox alignment="CENTER" spacing="10" styleClass="chat-input-area">
+      <Button fx:id="attachButton" text="📎" styleClass="icon-button" onAction="#onAttach"/>
+      <TextField fx:id="messageField" promptText="Message" HBox.hgrow="ALWAYS" styleClass="chat-input-field"/>
+      <Button fx:id="sendButton" text="➤" onAction="#onSend" styleClass="send-button"/>
+    </HBox>
+  </bottom>
+</BorderPane>

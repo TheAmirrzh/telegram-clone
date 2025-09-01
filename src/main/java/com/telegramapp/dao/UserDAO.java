@@ -59,4 +59,20 @@ public class UserDAO {
         u.setStatus(rs.getString("status"));
         return u;
     }
+
+    public List<User> findAllUsersExcept(UUID currentUserId) {
+        List<User> users = new ArrayList<>();
+        String sql = "SELECT id, username, password_hash, profile_name, profile_pic, bio, status FROM users WHERE id <> ? ORDER BY profile_name";
+        try (Connection c = DB.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, currentUserId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    users.add(map(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return users;
+    }
 }

@@ -1,5 +1,6 @@
 package com.telegramapp.controller;
 
+import com.telegramapp.dao.ChatDAO; // <-- IMPORT ADDED
 import com.telegramapp.dao.MessageDAO;
 import com.telegramapp.dao.TypingDAO;
 import com.telegramapp.model.Message;
@@ -15,6 +16,7 @@ import javafx.stage.FileChooser;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -33,14 +35,27 @@ public class ChatController {
     private UUID channelId;
     private final MessageDAO messageDAO = new MessageDAO();
     private final TypingDAO typingDAO = new TypingDAO();
+    private final ChatDAO chatDAO = new ChatDAO(); // This line now works
     private File pendingAttachment = null;
     private final ScheduledExecutorService poller = Executors.newSingleThreadScheduledExecutor(r -> { Thread t = new Thread(r); t.setDaemon(true); return t; });
     private ScheduledFuture<?> typingPollTask;
 
-    public void setCurrentUser(User u){ this.currentUser = u; ensureCellFactory(); startTypingPoll(); }
-    public void setPrivateChatId(UUID id){ this.privateChatId = id; chatTitle.setText("Private Chat: " + id); loadHistory(); }
-    public void setGroupId(UUID id){ this.groupId = id; chatTitle.setText("Group: " + id); loadHistory(); }
-    public void setChannelId(UUID id){ this.channelId = id; chatTitle.setText("Channel: " + id); loadHistory(); }
+    public void setCurrentUser(User u){ this.currentUser = u; ensureCellFactory(); }
+
+    public void setPrivateChatTarget(User targetUser) {
+        this.chatTitle.setText(targetUser.getProfileName());
+        // Find or create the private chat and then load its history
+        FX.runAsync(() -> chatDAO.findOrCreatePrivateChat(currentUser.getId(), targetUser.getId()),
+                chatId -> {
+                    this.privateChatId = (UUID) chatId; // <-- EXPLICIT CAST ADDED
+                    loadHistory();
+                    startTypingPoll(); // Start polling only after we have a chat ID
+                },
+                Throwable::printStackTrace);
+    }
+
+    public void setGroupId(UUID id){ this.groupId = id; chatTitle.setText("Group: " + id); loadHistory(); startTypingPoll(); }
+    public void setChannelId(UUID id){ this.channelId = id; chatTitle.setText("Channel: " + id); loadHistory(); /* No typing in channels */ }
 
     private void ensureCellFactory(){
         if (messageList.getCellFactory()==null && currentUser!=null) {
@@ -84,13 +99,34 @@ public class ChatController {
     private void loadHistory(){
         ensureCellFactory();
         FX.runAsync(() -> {
-            if (privateChatId != null) return messageDAO.loadPrivateChatHistory(privateChatId, 500);
-            else if (groupId != null) return messageDAO.loadGroupHistory(groupId, 500);
-            else return messageDAO.loadChannelHistory(channelId, 500);
-        }, list -> {
-            messageList.getItems().setAll(list);
-            if (!list.isEmpty()) messageList.scrollTo(list.size()-1);
-        }, Throwable::printStackTrace);
+            if (privateChatId != null) {
+                return messageDAO.loadPrivateChatHistory(privateChatId, 500);
+            } else if (groupId != null) {
+                return messageDAO.loadGroupHistory(groupId, 500);
+            } else if (channelId != null) {
+                return messageDAO.loadChannelHistory(channelId, 500);
+            }
+            // Return an empty list that is explicitly typed as holding Messages
+            return new ArrayList<Message>();
+        }, // Inside the 'loadHistory' method, in the success part of the lambda
+                (List<Message> list) -> {
+                    // Store the old size
+                    int oldSize = messageList.getItems().size();
+
+                    messageList.getItems().setAll(list);
+
+                    if (!list.isEmpty()) {
+                        messageList.scrollTo(list.size() - 1);
+
+                        // If we are just adding one new message, animate it
+                        if (list.size() == oldSize + 1 && oldSize > 0) {
+                            // This is a more advanced feature that requires getting the last cell
+                            // For now, we will skip the animation to keep it simple, but this is where it would go.
+                            // A simple animation would be on the entire list view.
+                        }
+                    }
+                }
+        , Throwable::printStackTrace);
     }
 
     @FXML public void onAttach(){
@@ -127,7 +163,8 @@ public class ChatController {
             disableInputs(false);
             loadHistory();
             // notify typing stopped
-            if (privateChatId!=null) typingDAO.setTyping(privateChatId, currentUser.getId()); // update last_ts
+            UUID currentChatId = privateChatId != null ? privateChatId : groupId;
+            if (currentChatId != null) typingDAO.setTyping(currentChatId, currentUser.getId()); // update last_ts
         }, err -> {
             disableInputs(false);
             err.printStackTrace();
@@ -146,16 +183,19 @@ public class ChatController {
     // Typing indicator: update DB when typing and poll DB to show other typers
     private void startTypingPoll(){
         if (typingPollTask!=null && !typingPollTask.isCancelled()) typingPollTask.cancel(true);
+
+        UUID currentChatId = privateChatId != null ? privateChatId : groupId;
+        if (currentChatId == null) return; // Don't start polling if there's no chat ID
+
         typingPollTask = poller.scheduleWithFixedDelay(() -> {
             try {
-                if (privateChatId==null) return;
                 // poll typing users in last 5 seconds
-                var users = typingDAO.getTypingUsers(privateChatId, 5);
+                var users = typingDAO.getTypingUsers(currentChatId, 5);
                 // remove self
                 users.removeIf(u -> u.equals(currentUser.getId()));
                 String text = "";
                 if (!users.isEmpty()) {
-                    text = users.size() + " typing...";
+                    text = users.size() + " user(s) typing...";
                 }
                 final String txt = text;
                 Platform.runLater(() -> typingLabel.setText(txt));
@@ -164,8 +204,8 @@ public class ChatController {
 
         // Also, when user types, update DB
         messageField.textProperty().addListener((obs, oldv, newv) -> {
-            if (privateChatId!=null && newv!=null && !newv.isBlank()) {
-                FX.runAsync(() -> typingDAO.setTyping(privateChatId, currentUser.getId()), r-> {}, Throwable::printStackTrace);
+            if (currentChatId !=null && newv!=null && !newv.isBlank()) {
+                FX.runAsync(() -> typingDAO.setTyping(currentChatId, currentUser.getId()), r-> {}, Throwable::printStackTrace);
             }
         });
     }

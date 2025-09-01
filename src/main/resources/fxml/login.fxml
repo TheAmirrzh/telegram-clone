@@ -1,17 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.*?>
+
 <?import javafx.geometry.Insets?>
-<VBox spacing="10" alignment="CENTER" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.controller.LoginController">
-  <padding>
-    <Insets top="20" right="20" bottom="20" left="20"/>
-  </padding>
-  <Label text="Telegram Clone" style="-fx-font-size:18px; -fx-font-weight:bold;"/>
-  <TextField fx:id="usernameField" promptText="Username" />
-  <PasswordField fx:id="passwordField" promptText="Password" />
-  <HBox spacing="10">
-    <Button fx:id="loginButton" text="Login" onAction="#onLogin" />
-    <Button fx:id="registerButton" text="Register" onAction="#onRegister" />
-  </HBox>
-  <Label fx:id="errorLabel" textFill="red" />
-</VBox>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<StackPane styleClass="background-pane" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.controller.LoginController">
+  <VBox alignment="CENTER" spacing="20" maxWidth="380" styleClass="glass-pane">
+    <padding>
+      <Insets top="40" right="40" bottom="40" left="40"/>
+    </padding>
+    <Label text="Welcome" styleClass="login-title"/>
+    <Label text="Please enter your credentials to continue." style="-fx-text-fill: -text-secondary; -fx-wrap-text: true; -fx-text-alignment: center;"/>
+
+    <VBox spacing="15">
+      <TextField fx:id="usernameField" promptText="Username" styleClass="login-text-field"/>
+      <PasswordField fx:id="passwordField" promptText="Password" styleClass="login-text-field"/>
+    </VBox>
+
+    <HBox spacing="10">
+      <Button fx:id="loginButton" text="Login" onAction="#onLogin" styleClass="login-button" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+      <Button fx:id="registerButton" text="Register" onAction="#onRegister" styleClass="login-button" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+    </HBox>
+    <Label fx:id="errorLabel" textFill="#D32F2F" alignment="CENTER" maxWidth="Infinity"/>
+  </VBox>
+</StackPane>
