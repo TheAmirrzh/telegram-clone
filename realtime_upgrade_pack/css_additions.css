@@ -1,0 +1,9 @@
+
+/* --- Rounded Cards & Smooth Scrollbars --- */
+.scroll-bar:vertical .thumb, .scroll-bar:horizontal .thumb {
+  -fx-background-color: rgba(0,0,0,0.25);
+  -fx-background-radius: 8px;
+}
+.list-cell {
+  -fx-background-radius: 14px;
+}

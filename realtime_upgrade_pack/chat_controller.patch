@@ -1,0 +1,47 @@
+
+*** a/src/main/java/com/telegramapp/controller/ChatController.java
+--- b/src/main/java/com/telegramapp/controller/ChatController.java
+@@
+ import com.telegramapp.model.Message;
+ import com.telegramapp.model.User;
+ import com.telegramapp.ui.MessageCell;
++import com.telegramapp.service.RealtimeService;
+@@
+ public class ChatController {
+@@
+-    private UUID privateChatId;
+-    private UUID groupId;
+-    private UUID channelId;
++    private UUID privateChatId;
++    private UUID groupId;
++    private UUID channelId;
++    private RealtimeService realtime;
+@@
+     public void initialize(){
+         messageList.setFocusTraversable(false);
+         messageList.setItems(messages);
+         ensureCellFactory();
++        // Initialize realtime and refresh when new message arrives
++        realtime = new RealtimeService(msg -> loadHistory());
+     }
+@@
+-    public void setPrivateChat(UUID chatId){
++    public void setPrivateChat(UUID chatId){
+         this.privateChatId = chatId;
+         this.groupId = null;
+         this.channelId = null;
+         chatTitle.setText("Private Chat");
+         loadHistory();
++        if (realtime!=null) realtime.subscribePrivate(chatId);
+     }
+@@
+-    public void setGroupId(UUID id){ this.groupId = id; chatTitle.setText("Group: " + id); loadHistory(); startTypingPoll(); }
+-    public void setChannelId(UUID id){ this.channelId = id; chatTitle.setText("Channel: " + id); loadHistory(); /* No typing in channels */ }
++    public void setGroupId(UUID id){ this.groupId = id; this.privateChatId=null; this.channelId=null; chatTitle.setText("Group"); loadHistory(); if (realtime!=null) realtime.subscribeGroup(id); startTypingPoll(); }
++    public void setChannelId(UUID id){ this.channelId = id; this.privateChatId=null; this.groupId=null; chatTitle.setText("Channel"); loadHistory(); if (realtime!=null) realtime.subscribeChannel(id); /* No typing in channels */ }
+@@
+     public void dispose(){
+-        // called when controller is closed
++        // called when controller is closed
++        try { if (realtime!=null) realtime.close(); } catch (Exception ignore) {}
+     }

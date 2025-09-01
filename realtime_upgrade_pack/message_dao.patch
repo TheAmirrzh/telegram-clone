@@ -1,0 +1,38 @@
+
+*** a/src/main/java/com/telegramapp/dao/MessageDAO.java
+--- b/src/main/java/com/telegramapp/dao/MessageDAO.java
+@@
+     public boolean insert(Message m){
+         if (m.getTimestamp()==null) m.setTimestamp(LocalDateTime.now());
+-        String sql = "INSERT INTO messages (id, sender_id, receiver_private_chat, receiver_group, receiver_channel, content, image_path, timestamp, read_status) VALUES (?,?,?,?,?,?,?,?,?)";
++        String sql = "INSERT INTO messages (id, sender_id, receiver_private_chat, receiver_group, receiver_channel, content, image_path, timestamp, read_status) VALUES (?,?,?,?,?,?,?,?,?)";
+         try (Connection c = DB.getConnection(); PreparedStatement ps = c.prepareStatement(sql)){
+             ps.setObject(1, m.getId());
+             ps.setObject(2, m.getSenderId());
+             ps.setObject(3, m.getReceiverPrivateChat());
+             ps.setObject(4, m.getReceiverGroup());
+             ps.setObject(5, m.getReceiverChannel());
+             ps.setString(6, m.getContent());
+             ps.setString(7, m.getImagePath());
+             ps.setTimestamp(8, Timestamp.valueOf(m.getTimestamp()));
+             ps.setString(9, m.getReadStatus());
+             boolean ok = ps.executeUpdate()==1;
++            // Fallback realtime notify if DB trigger is not installed
++            if (ok) {
++                String channel = null;
++                if (m.getReceiverPrivateChat()!=null) channel = "private_" + m.getReceiverPrivateChat().toString().replace("-", "");
++                else if (m.getReceiverGroup()!=null) channel = "group_" + m.getReceiverGroup().toString().replace("-", "");
++                else if (m.getReceiverChannel()!=null) channel = "channel_" + m.getReceiverChannel().toString().replace("-", "");
++                if (channel != null) {
++                    try (Statement st = c.createStatement()) {
++                        String payload = String.format("{\"chatType\":\"%s\",\"id\":\"%s\",\"messageId\":\"%s\"}",
++                                (m.getReceiverPrivateChat()!=null?"private":(m.getReceiverGroup()!=null?"group":"channel")),
++                                (m.getReceiverPrivateChat()!=null?m.getReceiverPrivateChat(): (m.getReceiverGroup()!=null?m.getReceiverGroup():m.getReceiverChannel())),
++                                m.getId());
++                        st.execute("SELECT pg_notify('" + channel + "', '" + payload.replace(\"'\",\"''\") + "')");
++                    } catch (SQLException ignore) {}
++                }
++            }
+             return ok;
+         } catch (SQLException e){ e.printStackTrace(); return false; }
+     }

@@ -5,9 +5,17 @@ import com.telegramapp.util.DB;
 
 import java.sql.*;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
+/**
+ * MessageDAO - basic CRUD for messages.
+ * Note: this implementation attempts to emit a NOTIFY payload after insert as a fallback
+ * if DB triggers are not installed.
+ */
 public class MessageDAO {
+
     public boolean insert(Message m){
         if (m.getTimestamp()==null) m.setTimestamp(LocalDateTime.now());
         String sql = "INSERT INTO messages (id, sender_id, receiver_private_chat, receiver_group, receiver_channel, content, image_path, timestamp, read_status) VALUES (?,?,?,?,?,?,?,?,?)";
@@ -21,16 +29,42 @@ public class MessageDAO {
             ps.setString(7, m.getImagePath());
             ps.setTimestamp(8, Timestamp.valueOf(m.getTimestamp()));
             ps.setString(9, m.getReadStatus());
-            return ps.executeUpdate()==1;
-        } catch (SQLException e){ e.printStackTrace(); return false; }
-    }
+            boolean ok = ps.executeUpdate()==1;
 
-    public boolean editMessage(UUID messageId, String newContent){
-        String sql = "UPDATE messages SET content = ?, read_status = 'EDITED' WHERE id = ?";
-        try (Connection c = DB.getConnection(); PreparedStatement ps = c.prepareStatement(sql)){
-            ps.setString(1, newContent);
-            ps.setObject(2, messageId);
-            return ps.executeUpdate()==1;
+            // Fallback realtime notify if DB trigger is not installed
+            if (ok) {
+                String channel = null;
+                String chatType = null;
+                String rid = null;
+                if (m.getReceiverPrivateChat()!=null) {
+                    channel = "private_" + m.getReceiverPrivateChat().toString().replace("-", "");
+                    chatType = "private";
+                    rid = m.getReceiverPrivateChat().toString();
+                } else if (m.getReceiverGroup()!=null) {
+                    channel = "group_" + m.getReceiverGroup().toString().replace("-", "");
+                    chatType = "group";
+                    rid = m.getReceiverGroup().toString();
+                } else if (m.getReceiverChannel()!=null) {
+                    channel = "channel_" + m.getReceiverChannel().toString().replace("-", "");
+                    chatType = "channel";
+                    rid = m.getReceiverChannel().toString();
+                }
+
+                if (channel != null) {
+                    // Build a JSON-ish payload and call pg_notify
+                    String payload = String.format("{\"chatType\":\"%s\",\"id\":\"%s\",\"messageId\":\"%s\"}",
+                            chatType, rid, m.getId().toString());
+                    try (Statement st = c.createStatement()) {
+                        // Use single-quoted string; escape single quotes in payload
+                        String safe = payload.replace("'", "''");
+                        st.execute("SELECT pg_notify('" + channel + "', '" + safe + "')");
+                    } catch (SQLException ignore) {
+                        // best effort: ignore if notify fails
+                    }
+                }
+            }
+
+            return ok;
         } catch (SQLException e){ e.printStackTrace(); return false; }
     }
 
@@ -40,6 +74,29 @@ public class MessageDAO {
             ps.setObject(1, messageId);
             return ps.executeUpdate()==1;
         } catch (SQLException e){ e.printStackTrace(); return false; }
+    }
+
+    private List<Message> load(String sql, SqlSetter setter){
+        List<Message> out = new ArrayList<>();
+        try (Connection c = DB.getConnection(); PreparedStatement ps = c.prepareStatement(sql)){
+            if (setter != null) setter.set(ps);
+            try (ResultSet rs = ps.executeQuery()){
+                while (rs.next()){
+                    Message m = new Message();
+                    m.setId(rs.getObject("id", UUID.class));
+                    m.setSenderId(rs.getObject("sender_id", UUID.class));
+                    m.setReceiverPrivateChat(rs.getObject("receiver_private_chat", UUID.class));
+                    m.setReceiverGroup(rs.getObject("receiver_group", UUID.class));
+                    m.setReceiverChannel(rs.getObject("receiver_channel", UUID.class));
+                    m.setContent(rs.getString("content"));
+                    m.setImagePath(rs.getString("image_path"));
+                    m.setTimestamp(rs.getTimestamp("timestamp").toLocalDateTime());
+                    m.setReadStatus(rs.getString("read_status"));
+                    out.add(m);
+                }
+            }
+        } catch (SQLException e){ e.printStackTrace(); }
+        return out;
     }
 
     public List<Message> loadPrivateChatHistory(UUID privateChatId, int limit){
@@ -57,49 +114,8 @@ public class MessageDAO {
         return load(sql, ps -> { ps.setObject(1, channelId); ps.setInt(2, limit); });
     }
 
-    public List<Message> searchMessages(String query, UUID userId, int limit){
-        String sql = "SELECT m.* FROM messages m WHERE m.content ILIKE ? AND (\n" +
-                "  m.receiver_private_chat IN (SELECT id FROM private_chats WHERE user1=? OR user2=?)\n" +
-                "  OR m.receiver_group IN (SELECT group_id FROM group_members WHERE user_id=?)\n" +
-                "  OR m.receiver_channel IN (SELECT channel_id FROM channel_subscribers WHERE user_id=?)\n" +
-                "  OR m.sender_id = ?\n" +
-                ") ORDER BY m.timestamp DESC LIMIT ?";
-        return load(sql, ps -> {
-            ps.setString(1, "%" + query + "%");
-            ps.setObject(2, userId);
-            ps.setObject(3, userId);
-            ps.setObject(4, userId);
-            ps.setObject(5, userId);
-            ps.setObject(6, userId);
-            ps.setInt(7, limit);
-        });
-    }
-
-    private interface Binder { void bind(PreparedStatement ps) throws SQLException; }
-
-    private List<Message> load(String sql, Binder binder){
-        List<Message> list = new ArrayList<>();
-        try (Connection c = DB.getConnection(); PreparedStatement ps = c.prepareStatement(sql)){
-            binder.bind(ps);
-            try (ResultSet rs = ps.executeQuery()){
-                while(rs.next()) list.add(map(rs));
-            }
-        } catch (SQLException e){ e.printStackTrace(); }
-        return list;
-    }
-
-    private Message map(ResultSet rs) throws SQLException {
-        Message m = new Message();
-        m.setId(rs.getObject("id", UUID.class));
-        m.setSenderId(rs.getObject("sender_id", UUID.class));
-        m.setReceiverPrivateChat(rs.getObject("receiver_private_chat", UUID.class));
-        m.setReceiverGroup(rs.getObject("receiver_group", UUID.class));
-        m.setReceiverChannel(rs.getObject("receiver_channel", UUID.class));
-        m.setContent(rs.getString("content"));
-        m.setImagePath(rs.getString("image_path"));
-        Timestamp ts = rs.getTimestamp("timestamp");
-        m.setTimestamp(ts!=null? ts.toLocalDateTime() : null);
-        m.setReadStatus(rs.getString("read_status"));
-        return m;
+    // Functional interface for parameter setting
+    private interface SqlSetter {
+        void set(PreparedStatement ps) throws SQLException;
     }
 }
