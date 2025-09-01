@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.controller.MainController">
+  <left>
+    <VBox spacing="6" prefWidth="260" style="-fx-padding:10;">
+      <Label text="Chats" />
+      <ListView fx:id="chatList" prefHeight="150" />
+      <Label text="Groups" />
+      <ListView fx:id="groupList" prefHeight="120" />
+      <Label text="Channels" />
+      <ListView fx:id="channelList" prefHeight="120" />
+    </VBox>
+  </left>
+  <center>
+    <VBox spacing="6" style="-fx-padding:10;">
+      <HBox spacing="6">
+        <TextField fx:id="searchField" promptText="Search messages..." HBox.hgrow="ALWAYS"/>
+        <Button text="Search" onAction="#onSearch"/>
+      </HBox>
+      <ListView fx:id="searchResults" prefHeight="120"/>
+    </VBox>
+  </center>
+</BorderPane>
