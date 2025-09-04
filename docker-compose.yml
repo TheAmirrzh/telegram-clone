@@ -1,14 +1,39 @@
-version: '3.8'
+version: "3.8"
+
 services:
   db:
     image: postgres:15
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB=telegramdb
-      - POSTGRES_USER=telegram_user
-      - POSTGRES_PASSWORD=telegram_pass
-    ports:
-      - "5433:5432"
+      POSTGRES_DB: telegramdb
+      POSTGRES_USER: telegram_user
+      POSTGRES_PASSWORD: telegram_pass
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro   # schema.sql will be executed on first startup
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/telegramdb
+      DB_USER: telegram_user
+      DB_PASS: telegram_pass
+    volumes:
+      - ./storage:/app/storage      # persist attachments created by the app
+    # For normal (non-GUI) container runs do not publish ports; GUI usage explained later.
+    tty: true
+
 volumes:
-  postgres-data:
+  pgdata:

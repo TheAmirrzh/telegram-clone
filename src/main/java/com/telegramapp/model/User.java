@@ -4,48 +4,57 @@ import java.util.Objects;
 import java.util.UUID;
 
 public class User {
-    private UUID id;
+    private final String id;
     private String username;
     private String passwordHash;
-    private String profileName;
-    private String profilePic;
+    private String displayName;
     private String bio;
+    private String profilePicPath;
     private String status;
 
-    public User() {}
+    public User(String username, String passwordHash, String displayName) {
+        this.id = UUID.randomUUID().toString();
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.displayName = displayName;
+        this.bio = "";
+        this.profilePicPath = "";
+        this.status = "Offline";
+    }
 
-    public User(UUID id, String username, String passwordHash) {
+    public User(String id, String username, String passwordHash, String displayName) {
         this.id = id;
         this.username = username;
         this.passwordHash = passwordHash;
+        this.displayName = displayName;
     }
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
+    public String getId() { return id; }
     public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
     public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
-    public String getProfileName() { return profileName; }
-    public void setProfileName(String profileName) { this.profileName = profileName; }
-    public String getProfilePic() { return profilePic; }
-    public void setProfilePic(String profilePic) { this.profilePic = profilePic; }
-    public String getBio() { return bio; }
-    public void setBio(String bio) { this.bio = bio; }
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public String getDisplayName() { return displayName; }
+    public String getBio(){ return bio; }
+    public void setBio(String bio){ this.bio = bio; }
+    public void setProfilePicPath(String p){ this.profilePicPath = p; }
+    public String getProfilePicPath(){ return profilePicPath; }
+    public void setStatus(String s){ this.status = s; }
+    public String getStatus(){ return status; }
+
+    public void setPasswordHash(String passwordHash){ this.passwordHash = passwordHash; }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof User)) return false;
-        User user = (User) o;
-        return Objects.equals(id, user.id);
+        User u = (User) o;
+        return Objects.equals(id, u.id);
     }
 
     @Override
     public int hashCode() { return Objects.hash(id); }
 
     @Override
-    public String toString() { return profileName != null ? profileName : username; }
+    public String toString() {
+        return "User{" + "id='" + id + '\'' + ", username='" + username + '\'' + '}';
+    }
 }

@@ -1,150 +1,179 @@
 package com.telegramapp.controller;
 
+import com.telegramapp.dao.impl.MessageDAOImpl;
+import com.telegramapp.dao.impl.UserDAOImpl;
 import com.telegramapp.model.Message;
 import com.telegramapp.model.User;
-import com.telegramapp.service.RealtimeService;
-import com.telegramapp.ui.MessageCell;
-import com.telegramapp.dao.ChatDAO;
-import com.telegramapp.dao.MessageDAO;
-import com.telegramapp.dao.TypingDAO;
-import com.telegramapp.util.FX;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.stage.FileChooser;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.*;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.*;
 
-/**
- * ChatController - controls chat UI. This version subscribes to realtime updates.
- */
 public class ChatController {
-
-    @FXML private Label chatTitle;
-    @FXML private ListView<Message> messageList;
+    @FXML private ListView<Message> messagesList;
     @FXML private TextField messageField;
-    @FXML private Button sendButton;
     @FXML private Button attachButton;
+    @FXML private Button sendButton;
 
-    private final ObservableList<Message> messages = FXCollections.observableArrayList();
-    private final MessageDAO messageDAO = new MessageDAO();
-    private final ChatDAO chatDAO = new ChatDAO();
-    private final TypingDAO typingDAO = new TypingDAO();
+    private final MessageDAOImpl messageDAO;
+    private final UserDAOImpl userDAO;
 
-    private User currentUser;
-    private UUID privateChatId;
-    private UUID groupId;
-    private UUID channelId;
+    private String currentUserId; // stored as String
+    private String receiverId;    // stored as String
+    private String receiverType;  // "USER" | "GROUP" | "CHANNEL"
 
-    // realtime
-    private RealtimeService realtime;
+    private volatile LocalDateTime lastLoaded = LocalDateTime.now().minusYears(1);
+    private ScheduledExecutorService scheduler;
+    private File selectedAttachment;
 
-    public void initialize(){
-        messageList.setFocusTraversable(false);
-        messageList.setItems(messages);
-        ensureCellFactory();
-
-        // Initialize realtime client and subscribe callback
-        realtime = new RealtimeService(msg -> {
-            // simplest approach: reload history when a message arrives
-            // you can replace with incremental fetch by messageId if preferred
-            loadHistory();
-        });
+    public ChatController() {
+        this.messageDAO = new MessageDAOImpl();
+        this.userDAO = new UserDAOImpl();
     }
 
-    private void ensureCellFactory(){
-        if (messageList.getCellFactory()==null && currentUser!=null) {
-            messageList.setCellFactory(lv -> new MessageCell(currentUser));
+    /**
+     * Initialize chat controller. Accepts UUIDs (your callers may pass UUID objects).
+     */
+    public void init(UUID currentUserUuid, String receiverType, UUID otherUuid) {
+        this.currentUserId = currentUserUuid == null ? null : currentUserUuid.toString();
+        this.receiverType = receiverType;
+        this.receiverId = otherUuid == null ? null : otherUuid.toString();
+
+        // cell factory: simply show message content + media indicator
+        messagesList.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(Message m, boolean empty) {
+                super.updateItem(m, empty);
+                if (empty || m == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    HBox box = new HBox(8);
+                    String who = m.getSenderId().equals(currentUserId) ? "You" : resolveName(m.getSenderId());
+                    String time = m.getTimestamp() == null ? "" : m.getTimestamp().toString();
+                    String text = "[" + time + "] " + who + ": " + (m.getContent() == null ? "" : m.getContent());
+                    if (m.getMediaPath() != null && !m.getMediaPath().isEmpty()) text += " (attachment)";
+                    setText(text);
+                    setGraphic(box);
+                }
+            }
+        });
+
+        // load current conversation
+        reloadConversation();
+
+        // schedule polling for new messages
+        scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                List<Message> newMsgs = messageDAO.findNewMessagesAfter(receiverType, receiverId, currentUserId, lastLoaded);
+                if (!newMsgs.isEmpty()) {
+                    Platform.runLater(() -> {
+                        messagesList.getItems().addAll(newMsgs);
+                        lastLoaded = newMsgs.get(newMsgs.size() - 1).getTimestamp();
+                        messagesList.scrollTo(messagesList.getItems().size() - 1);
+                    });
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }, 1500, 1500, TimeUnit.MILLISECONDS);
+    }
+
+    private void reloadConversation() {
+        try {
+            List<Message> all = messageDAO.findConversation(receiverType, receiverId, currentUserId);
+            messagesList.getItems().clear();
+            messagesList.getItems().addAll(all);
+            if (!all.isEmpty()) lastLoaded = all.get(all.size()-1).getTimestamp();
+            messagesList.scrollTo(messagesList.getItems().size() - 1);
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 
-    public void setCurrentUser(User u){
-        this.currentUser = u;
-        ensureCellFactory();
-    }
-
-    public void setPrivateChat(UUID chatId){
-        this.privateChatId = chatId;
-        this.groupId = null;
-        this.channelId = null;
-        chatTitle.setText("Private Chat");
-        loadHistory();
-        if (realtime != null) realtime.subscribePrivate(chatId);
-        startTypingPoll();
-    }
-
-    public void setGroupId(UUID id){
-        this.groupId = id;
-        this.privateChatId = null;
-        this.channelId = null;
-        chatTitle.setText("Group");
-        loadHistory();
-        if (realtime != null) realtime.subscribeGroup(id);
-        startTypingPoll();
-    }
-
-    public void setChannelId(UUID id){
-        this.channelId = id;
-        this.privateChatId = null;
-        this.groupId = null;
-        chatTitle.setText("Channel");
-        loadHistory();
-        if (realtime != null) realtime.subscribeChannel(id);
-        // channels don't use typing indicators
-    }
-
-    public void loadHistory(){
-        FX.runAsync(() -> {
-            List<Message> list;
-            if (privateChatId!=null) list = messageDAO.loadPrivateChatHistory(privateChatId, 200);
-            else if (groupId!=null) list = messageDAO.loadGroupHistory(groupId, 200);
-            else if (channelId!=null) list = messageDAO.loadChannelHistory(channelId, 200);
-            else list = List.of();
-            return list;
-        }, list -> {
-            messages.setAll(list);
-            // scroll to bottom
-            if (!messages.isEmpty()) {
-                Platform.runLater(() -> messageList.scrollTo(messages.size()-1));
-            }
-        }, Throwable::printStackTrace);
+    private String resolveName(String userId) {
+        if (userId == null) return "Unknown";
+        if (userId.equals(currentUserId)) return "You";
+        try {
+            return userDAO.findById(userId).map(u -> {
+                String d = u.getDisplayName();
+                return (d == null || d.isBlank()) ? u.getUsername() : d;
+            }).orElse(userId);
+        } catch (SQLException ex) {
+            return userId;
+        }
     }
 
     @FXML
-    public void onSend(){
-        String txt = messageField.getText();
-        if (txt==null || txt.isBlank()) return;
-        Message m = new Message();
-        m.setId(UUID.randomUUID());
-        m.setSenderId(currentUser.getId());
-        m.setContent(txt);
-        if (privateChatId!=null) m.setReceiverPrivateChat(privateChatId);
-        if (groupId!=null) m.setReceiverGroup(groupId);
-        if (channelId!=null) m.setReceiverChannel(channelId);
-        boolean ok = messageDAO.insert(m);
-        if (ok) {
-            messageField.clear();
-            // optimistic UI update: append and scroll
-            messages.add(m);
-            Platform.runLater(() -> messageList.scrollTo(messages.size()-1));
-        } else {
-            // show error
-            FX.showError("Failed to send message");
+    private void onAttach() {
+        FileChooser fc = new FileChooser();
+        fc.setTitle("Select file to attach");
+        File file = fc.showOpenDialog(messageField.getScene().getWindow());
+        if (file != null) {
+            long maxBytes = 20L * 1024L * 1024L;
+            if (file.length() > maxBytes) {
+                Alert a = new Alert(Alert.AlertType.WARNING, "File too large (limit 20 MB).", ButtonType.OK);
+                a.showAndWait();
+                return;
+            }
+            selectedAttachment = file;
+            messageField.setText("[Attached: " + file.getName() + "] " + messageField.getText());
         }
     }
 
-    private void startTypingPoll(){
-        // keep existing implementation or replace with realtime typing later
+    @FXML
+    private void onSend() {
+        String text = messageField.getText().trim();
+        if ((text.isEmpty() || text == null) && selectedAttachment == null) return;
+
+        try {
+            if (selectedAttachment != null) {
+                Path storageDir = Paths.get("storage");
+                if (!Files.exists(storageDir)) Files.createDirectories(storageDir);
+                String orig = selectedAttachment.getName();
+                String ext = "";
+                int i = orig.lastIndexOf('.');
+                if (i >= 0) ext = orig.substring(i);
+                String storedName = UUID.randomUUID().toString() + ext;
+                Path dest = storageDir.resolve(storedName);
+                Files.copy(selectedAttachment.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
+                String mediaType = Files.probeContentType(dest);
+                if (mediaType == null) mediaType = "file";
+                String mediaPath = dest.toString();
+
+                Message m = new Message(currentUserId, receiverId, receiverType, text, mediaType, mediaPath);
+                messageDAO.save(m);
+                messagesList.getItems().add(m);
+                lastLoaded = m.getTimestamp();
+                selectedAttachment = null;
+                messageField.clear();
+            } else {
+                Message m = new Message(currentUserId, receiverId, receiverType, text);
+                messageDAO.save(m);
+                messagesList.getItems().add(m);
+                lastLoaded = m.getTimestamp();
+                messageField.clear();
+            }
+            messagesList.scrollTo(messagesList.getItems().size() - 1);
+        } catch (SQLException | IOException e) {
+            e.printStackTrace();
+            Alert a = new Alert(Alert.AlertType.ERROR, "Send failed: " + e.getMessage(), ButtonType.OK);
+            a.showAndWait();
+        }
     }
 
-    public void dispose(){
-        // called when controller is closed
-        try { if (realtime!=null) realtime.close(); } catch (Exception ignore) {}
+    public void onClose() {
+        if (scheduler != null) scheduler.shutdownNow();
     }
-
-    // other handlers (attach etc.) remain unchanged
 }

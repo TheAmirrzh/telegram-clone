@@ -1,13 +1,13 @@
-package com.telegramapp.controller;
+package com.telegramapp.ui.controllers;
 
 import com.telegramapp.model.User;
 import com.telegramapp.service.AuthService;
 import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.stage.Stage;
-
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Optional;
 
@@ -16,13 +16,13 @@ public class LoginController {
     @FXML private PasswordField passwordField;
     @FXML private Label messageLabel;
 
-    private final AuthService authService;
+    private AuthService authService;
 
     public LoginController() {
         try {
             this.authService = new AuthService();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
@@ -35,11 +35,10 @@ public class LoginController {
             return;
         }
         try {
-            Optional<User> optUser = authService.login(u, p);
-            if (optUser.isPresent()) {
-                User user = optUser.get();
-                messageLabel.setText("Login successful.");
-                openMainWindow(user);
+            Optional<User> userOpt = authService.login(u, p);
+            if (userOpt.isPresent()) {
+                messageLabel.setText("Login successful. Opening...");
+                openMainWindow(userOpt.get());
             } else {
                 messageLabel.setText("Login failed. Wrong credentials.");
             }
@@ -69,16 +68,15 @@ public class LoginController {
 
     private void openMainWindow(User user) {
         try {
-            // Load main.fxml — keep this behavior as your project already does
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/fxml/main.fxml"));
-            javafx.scene.Scene scene = new javafx.scene.Scene(loader.load());
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/main.fxml"));
+            Scene scene = new Scene(loader.load());
             MainController ctrl = loader.getController();
             ctrl.setCurrentUser(user);
 
             Stage stage = (Stage) usernameField.getScene().getWindow();
             stage.setTitle("Telegram - " + user.getDisplayName());
             stage.setScene(scene);
-        } catch (Exception ex) {
+        } catch (IOException ex) {
             ex.printStackTrace();
         }
     }

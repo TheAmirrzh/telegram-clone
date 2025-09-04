@@ -1,6 +1,7 @@
 package com.telegramapp.util;
 
 import javafx.application.Platform;
+import javafx.scene.control.Alert;
 
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -36,4 +37,14 @@ public class FX {
     }
 
     public static void shutdown(){ EXEC.shutdown(); }
+
+    public static void showError(String message) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
+    }
 }

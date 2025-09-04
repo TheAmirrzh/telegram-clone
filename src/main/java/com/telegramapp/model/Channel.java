@@ -4,26 +4,38 @@ import java.util.Objects;
 import java.util.UUID;
 
 public class Channel {
-    private UUID id;
+    private final String id;
     private String name;
-    private UUID owner;
-    private String profilePic;
+    private String ownerId;
 
-    public Channel() {}
-    public Channel(UUID id, String name, UUID owner) {
-        this.id = id; this.name = name; this.owner = owner;
+    public Channel(String name, String ownerId) {
+        this.id = UUID.randomUUID().toString();
+        this.name = name;
+        this.ownerId = ownerId;
     }
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public UUID getOwner() { return owner; }
-    public void setOwner(UUID owner) { this.owner = owner; }
-    public String getProfilePic() { return profilePic; }
-    public void setProfilePic(String profilePic) { this.profilePic = profilePic; }
+    public Channel(String id, String name, String ownerId) {
+        this.id = id;
+        this.name = name;
+        this.ownerId = ownerId;
+    }
 
-    @Override public boolean equals(Object o){ return o instanceof Channel && java.util.Objects.equals(id, ((Channel)o).id); }
-    @Override public int hashCode(){ return Objects.hash(id); }
-    @Override public String toString(){ return name; }
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public String getOwnerId() { return ownerId; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Channel)) return false;
+        return Objects.equals(id, ((Channel)o).id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+
+    @Override
+    public String toString() { return name; }
 }

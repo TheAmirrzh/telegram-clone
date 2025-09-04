@@ -1,5 +1,7 @@
-package com.telegramapp.controller;
+package com.telegramapp.ui.controllers;
 
+import com.telegramapp.dao.GroupDAO;
+import com.telegramapp.dao.UserDAO;
 import com.telegramapp.dao.impl.ChannelDAOImpl;
 import com.telegramapp.dao.impl.GroupDAOImpl;
 import com.telegramapp.dao.impl.UserDAOImpl;
@@ -27,24 +29,25 @@ public class MainController {
     @FXML private Label profileUsername;
 
     private User currentUser;
-    private UserDAOImpl userDAO;
-    private GroupDAOImpl groupDAO;
+    private UserDAO userDAO;
+    private GroupDAO groupDAO;
     private ChannelDAOImpl channelDAO;
-
-    // Constructor: DAOs no longer throw checked exceptions in their no-arg ctors,
-    // so no try/catch for SQLException is necessary.
-    public MainController() {
-        this.userDAO = new UserDAOImpl();
-        this.groupDAO = new GroupDAOImpl();
-        this.channelDAO = new ChannelDAOImpl();
-    }
 
     public void setCurrentUser(User u) {
         this.currentUser = u;
         profileName.setText(u.getDisplayName());
         profileUsername.setText("@" + u.getUsername());
-        setupCellFactories();
-        refreshAll();
+        try {
+            this.userDAO = new UserDAOImpl();
+            this.groupDAO = new GroupDAOImpl();
+            this.channelDAO = new ChannelDAOImpl();
+            setupCellFactories();
+            refreshUsers();
+            refreshGroups();
+            refreshChannels();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private void setupCellFactories() {
@@ -56,6 +59,7 @@ public class MainController {
                 else setText(u.getDisplayName() == null || u.getDisplayName().isBlank() ? u.getUsername() : u.getDisplayName());
             }
         });
+
         groupsListView.setCellFactory(lv -> new ListCell<>() {
             @Override
             protected void updateItem(Group g, boolean empty) {
@@ -63,6 +67,7 @@ public class MainController {
                 setText(empty || g == null ? null : g.getName());
             }
         });
+
         channelsListView.setCellFactory(lv -> new ListCell<>() {
             @Override
             protected void updateItem(Channel c, boolean empty) {
@@ -93,34 +98,32 @@ public class MainController {
         });
     }
 
-    private void refreshAll() {
-        try {
-            refreshUsers();
-            refreshGroups();
-            refreshChannels();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
     private void refreshUsers() throws SQLException {
-        usersListView.getItems().setAll(userDAO.findAllExcept(currentUser.getId()));
+        usersListView.getItems().clear();
+        List<User> others = userDAO.findAllExcept(currentUser.getId());
+        usersListView.getItems().addAll(others);
     }
 
     private void refreshGroups() throws SQLException {
-        groupsListView.getItems().setAll(groupDAO.findByUser(currentUser.getId()));
+        groupsListView.getItems().clear();
+        List<Group> groups = groupDAO.findByUser(currentUser.getId());
+        groupsListView.getItems().addAll(groups);
     }
 
     private void refreshChannels() throws SQLException {
-        channelsListView.getItems().setAll(channelDAO.findAll());
+        channelsListView.getItems().clear();
+        // show all channels for now; you can filter by subscriptions/owner later
+        List<Channel> channels = channelDAO.findAll();
+        channelsListView.getItems().addAll(channels);
     }
 
     private void openPrivateChat(User other) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/chat.fxml"));
             Scene scene = new Scene(loader.load());
             ChatController ctrl = loader.getController();
-            ctrl.init(java.util.UUID.fromString(currentUser.getId()), "USER", java.util.UUID.fromString(other.getId()));
+            ctrl.init(currentUser, "USER", other.getId());
+
             Stage stage = new Stage();
             stage.setTitle("Chat with @" + other.getUsername());
             stage.setScene(scene);
@@ -133,10 +136,11 @@ public class MainController {
 
     private void openGroupChat(Group g) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/chat.fxml"));
             Scene scene = new Scene(loader.load());
             ChatController ctrl = loader.getController();
-            ctrl.init(java.util.UUID.fromString(currentUser.getId()), "GROUP", java.util.UUID.fromString(g.getId()));
+            ctrl.init(currentUser, "GROUP", g.getId());
+
             Stage stage = new Stage();
             stage.setTitle("Group: " + g.getName());
             stage.setScene(scene);
@@ -149,10 +153,11 @@ public class MainController {
 
     private void openChannel(Channel c) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/chat.fxml"));
             Scene scene = new Scene(loader.load());
             ChatController ctrl = loader.getController();
-            ctrl.init(java.util.UUID.fromString(currentUser.getId()), "CHANNEL", java.util.UUID.fromString(c.getId()));
+            ctrl.init(currentUser, "CHANNEL", c.getId());
+
             Stage stage = new Stage();
             stage.setTitle("Channel: " + c.getName());
             stage.setScene(scene);
@@ -165,18 +170,13 @@ public class MainController {
 
     public void onNewGroup() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/group_create.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/group_create.fxml"));
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.setTitle("Create Group");
             dialog.setScene(new Scene(loader.load()));
-            var ctrl = loader.getController();
-            try {
-                java.lang.reflect.Method m = ctrl.getClass().getMethod("init", com.telegramapp.model.User.class);
-                m.invoke(ctrl, currentUser);
-            } catch (Exception ex) {
-                // ignore reflection failures; most likely your GroupCreateController has init(User)
-            }
+            GroupCreateController ctrl = loader.getController();
+            ctrl.init(currentUser);
             dialog.showAndWait();
             refreshGroups();
         } catch (IOException | SQLException e) {
@@ -186,16 +186,13 @@ public class MainController {
 
     public void onNewChannel() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/channel_create.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/channel_create.fxml"));
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.setTitle("Create Channel");
             dialog.setScene(new Scene(loader.load()));
-            var ctrl = loader.getController();
-            try {
-                java.lang.reflect.Method m = ctrl.getClass().getMethod("init", com.telegramapp.model.User.class);
-                m.invoke(ctrl, currentUser);
-            } catch (Exception ignored) {}
+            ChannelCreateController ctrl = loader.getController();
+            ctrl.init(currentUser);
             dialog.showAndWait();
             refreshChannels();
         } catch (IOException | SQLException e) {

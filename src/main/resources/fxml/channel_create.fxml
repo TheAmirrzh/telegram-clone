@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="10" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.ui.controllers.ChannelCreateController">
+    <padding><Insets top="12" right="12" bottom="12" left="12"/></padding>
+
+    <Label text="Create Channel" style="-fx-font-size:14px; -fx-font-weight:bold;"/>
+    <TextField fx:id="channelNameField" promptText="Channel name" prefWidth="420"/>
+
+    <HBox spacing="8">
+        <Button text="Create" onAction="#onCreate"/>
+        <Button text="Cancel" onAction="#onCancel"/>
+    </HBox>
+
+    <Label fx:id="messageLabel" style="-fx-text-fill:#b22222;"/>
+</VBox>

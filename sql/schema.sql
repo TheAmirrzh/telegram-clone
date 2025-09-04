@@ -1,74 +1,46 @@
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
+-- schema.sql
 CREATE TABLE IF NOT EXISTS users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  username VARCHAR(50) UNIQUE NOT NULL,
-  password_hash VARCHAR(100) NOT NULL,
-  profile_name VARCHAR(100),
-  profile_pic TEXT,
+  id VARCHAR(36) PRIMARY KEY,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  display_name VARCHAR(255),
   bio TEXT,
-  status VARCHAR(50),
-  created_at TIMESTAMP DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS private_chats (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user1 UUID NOT NULL REFERENCES users(id),
-  user2 UUID NOT NULL REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT now(),
-  CONSTRAINT unique_pair UNIQUE (user1, user2)
-);
-
-CREATE TABLE IF NOT EXISTS groups (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(150) NOT NULL,
-  creator UUID NOT NULL REFERENCES users(id),
-  profile_pic TEXT,
-  created_at TIMESTAMP DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS channels (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(150) NOT NULL,
-  owner UUID NOT NULL REFERENCES users(id),
-  profile_pic TEXT,
-  created_at TIMESTAMP DEFAULT now()
+  profile_pic_path TEXT,
+  status VARCHAR(50)
 );
 
 CREATE TABLE IF NOT EXISTS messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  sender_id UUID NOT NULL REFERENCES users(id),
-  receiver_private_chat UUID NULL REFERENCES private_chats(id),
-  receiver_group UUID NULL REFERENCES groups(id),
-  receiver_channel UUID NULL REFERENCES channels(id),
+  id VARCHAR(36) PRIMARY KEY,
+  sender_id VARCHAR(36) REFERENCES users(id),
+  receiver_id VARCHAR(36),
+  receiver_type VARCHAR(20),
   content TEXT,
-  image_path TEXT,
-  timestamp TIMESTAMP DEFAULT now(),
-  read_status VARCHAR(20) DEFAULT 'SENT'
+  media_type VARCHAR(100),
+  media_path TEXT,
+  timestamp TIMESTAMP DEFAULT NOW(),
+  read_status VARCHAR(20)
 );
 
--- Group membership
+CREATE TABLE IF NOT EXISTS groups (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  creator_id VARCHAR(36) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS group_members (
-  group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-  user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role     VARCHAR(20) DEFAULT 'member',
+  group_id VARCHAR(36) REFERENCES groups(id),
+  user_id VARCHAR(36) REFERENCES users(id),
   PRIMARY KEY (group_id, user_id)
 );
 
--- Channel subscribers
+CREATE TABLE IF NOT EXISTS channels (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  owner_id VARCHAR(36) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS channel_subscribers (
-  channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
-  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  channel_id VARCHAR(36) REFERENCES channels(id),
+  user_id VARCHAR(36) REFERENCES users(id),
   PRIMARY KEY (channel_id, user_id)
 );
-
--- Typing indicator table
-CREATE TABLE IF NOT EXISTS typing_status (
-  chat_id UUID NOT NULL,
-  user_id UUID NOT NULL,
-  last_ts TIMESTAMP NOT NULL,
-  PRIMARY KEY (chat_id, user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
