@@ -1,5 +1,6 @@
 package com.telegramapp.ui.controllers;
 
+import com.telegramapp.dao.ChannelDAO;
 import com.telegramapp.dao.GroupDAO;
 import com.telegramapp.dao.UserDAO;
 import com.telegramapp.dao.impl.ChannelDAOImpl;
@@ -8,6 +9,7 @@ import com.telegramapp.dao.impl.UserDAOImpl;
 import com.telegramapp.model.Channel;
 import com.telegramapp.model.Group;
 import com.telegramapp.model.User;
+import com.telegramapp.util.FX;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -20,6 +22,7 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 
 public class MainController {
@@ -28,182 +31,115 @@ public class MainController {
     @FXML private ListView<Channel> channelsListView;
     @FXML private Label profileName;
     @FXML private Label profileUsername;
-    @FXML private Region spacer; // <-- ADD THIS LINE
+    @FXML private Region spacer;
 
     private User currentUser;
     private UserDAO userDAO;
     private GroupDAO groupDAO;
-    private ChannelDAOImpl channelDAO;
+    private ChannelDAO channelDAO;
+
+    private record InitResult(UserDAO userDAO, GroupDAO groupDAO, ChannelDAO channelDAO, List<User> users, List<Group> groups, List<Channel> channels) {}
 
     public void setCurrentUser(User u) {
         this.currentUser = u;
         profileName.setText(u.getDisplayName());
         profileUsername.setText("@" + u.getUsername());
-
-        // This is safe to run on the UI thread as it only configures existing components
         setupCellFactories();
 
-        // Asynchronously initialize DAOs and load all data
-        com.telegramapp.util.FX.runAsync(() -> {
-            // --- THIS ENTIRE BLOCK NOW RUNS IN THE BACKGROUND ---
+        FX.runAsync(() -> {
             try {
-                // 1. Instantiate DAOs in the background (this creates the connection pool)
                 UserDAO uDAO = new UserDAOImpl();
                 GroupDAO gDAO = new GroupDAOImpl();
-                ChannelDAOImpl cDAO = new ChannelDAOImpl();
-
-                // 2. Fetch data using the new DAO instances
+                ChannelDAO cDAO = new ChannelDAOImpl();
                 List<User> users = uDAO.findAllExcept(currentUser.getId());
                 List<Group> groups = gDAO.findByUser(currentUser.getId());
                 List<Channel> channels = cDAO.findAll();
-
-                // 3. Return a result object containing everything
                 return new InitResult(uDAO, gDAO, cDAO, users, groups, channels);
             } catch (Exception e) {
                 e.printStackTrace();
                 return null;
             }
         }, (result) -> {
-            // --- THIS BLOCK RUNS ON THE UI THREAD ONCE THE BACKGROUND TASK IS DONE ---
             if (result != null) {
-                // 1. Assign the fully initialized DAOs to the controller's fields
                 this.userDAO = result.userDAO();
                 this.groupDAO = result.groupDAO();
                 this.channelDAO = result.channelDAO();
-
-                // 2. Update the UI with the loaded data
                 usersListView.getItems().setAll(result.users());
                 groupsListView.getItems().setAll(result.groups());
                 channelsListView.getItems().setAll(result.channels());
             }
-        }, (error) -> {
-            // Handle any unexpected errors
-            error.printStackTrace();
-        });
+        }, Throwable::printStackTrace);
     }
-
-    // Ensure this record is at the end of your MainController class
-    private record LoadedData(List<User> users, List<Group> groups, List<Channel> channels) {}
 
     private void setupCellFactories() {
         usersListView.setCellFactory(lv -> new ListCell<>() {
             @Override
-            protected void updateItem(User u, boolean empty) {
-                super.updateItem(u, empty);
-                if (empty || u == null) setText(null);
-                else setText(u.getDisplayName() == null || u.getDisplayName().isBlank() ? u.getUsername() : u.getDisplayName());
+            protected void updateItem(User item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getDisplayName());
             }
         });
-
         groupsListView.setCellFactory(lv -> new ListCell<>() {
             @Override
-            protected void updateItem(Group g, boolean empty) {
-                super.updateItem(g, empty);
-                setText(empty || g == null ? null : g.getName());
+            protected void updateItem(Group item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
             }
         });
-
         channelsListView.setCellFactory(lv -> new ListCell<>() {
             @Override
-            protected void updateItem(Channel c, boolean empty) {
-                super.updateItem(c, empty);
-                setText(empty || c == null ? null : c.getName());
+            protected void updateItem(Channel item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
             }
         });
-
         usersListView.setOnMouseClicked(ev -> {
-            if (ev.getClickCount() == 2) {
-                User sel = usersListView.getSelectionModel().getSelectedItem();
-                if (sel != null) openPrivateChat(sel);
+            if (ev.getClickCount() == 2 && usersListView.getSelectionModel().getSelectedItem() != null) {
+                openPrivateChat(usersListView.getSelectionModel().getSelectedItem());
             }
         });
-
         groupsListView.setOnMouseClicked(ev -> {
-            if (ev.getClickCount() == 2) {
-                Group sel = groupsListView.getSelectionModel().getSelectedItem();
-                if (sel != null) openGroupChat(sel);
+            if (ev.getClickCount() == 2 && groupsListView.getSelectionModel().getSelectedItem() != null) {
+                openGroupChat(groupsListView.getSelectionModel().getSelectedItem());
             }
         });
-
         channelsListView.setOnMouseClicked(ev -> {
-            if (ev.getClickCount() == 2) {
-                Channel sel = channelsListView.getSelectionModel().getSelectedItem();
-                if (sel != null) openChannel(sel);
+            if (ev.getClickCount() == 2 && channelsListView.getSelectionModel().getSelectedItem() != null) {
+                openChannel(channelsListView.getSelectionModel().getSelectedItem());
             }
         });
-    }
-
-    private void refreshUsers() throws SQLException {
-        usersListView.getItems().clear();
-        List<User> others = userDAO.findAllExcept(currentUser.getId());
-        usersListView.getItems().addAll(others);
-    }
-
-    private void refreshGroups() throws SQLException {
-        groupsListView.getItems().clear();
-        List<Group> groups = groupDAO.findByUser(currentUser.getId());
-        groupsListView.getItems().addAll(groups);
-    }
-
-    private void refreshChannels() throws SQLException {
-        channelsListView.getItems().clear();
-        // show all channels for now; you can filter by subscriptions/owner later
-        List<Channel> channels = channelDAO.findAll();
-        channelsListView.getItems().addAll(channels);
     }
 
     private void openPrivateChat(User other) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
-            Scene scene = new Scene(loader.load());
-            ChatController ctrl = loader.getController();
-            ctrl.init(currentUser, "USER", other.getId());
-
-            Stage stage = new Stage();
-            stage.setTitle("Chat with @" + other.getUsername());
-            stage.setScene(scene);
-            stage.show();
-            stage.setOnCloseRequest(ev -> ctrl.onClose());
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
+        openChatWindow("Chat with @" + other.getUsername(), "USER", other.getId());
     }
 
     private void openGroupChat(Group g) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
-            Scene scene = new Scene(loader.load());
-            ChatController ctrl = loader.getController();
-            ctrl.init(currentUser, "GROUP", g.getId());
-
-            Stage stage = new Stage();
-            stage.setTitle("Group: " + g.getName());
-            stage.setScene(scene);
-            stage.show();
-            stage.setOnCloseRequest(ev -> ctrl.onClose());
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
+        openChatWindow("Group: " + g.getName(), "GROUP", g.getId());
     }
 
     private void openChannel(Channel c) {
+        openChatWindow("Channel: " + c.getName(), "CHANNEL", c.getId());
+    }
+
+    private void openChatWindow(String title, String receiverType, String receiverId) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
             Scene scene = new Scene(loader.load());
             ChatController ctrl = loader.getController();
-            ctrl.init(currentUser, "CHANNEL", c.getId());
-
+            ctrl.init(currentUser, receiverType, receiverId);
             Stage stage = new Stage();
-            stage.setTitle("Channel: " + c.getName());
+            stage.setTitle(title);
             stage.setScene(scene);
-            stage.show();
             stage.setOnCloseRequest(ev -> ctrl.onClose());
+            stage.show();
         } catch (IOException ex) {
             ex.printStackTrace();
         }
     }
 
-    public void onNewGroup() {
+    @FXML
+    private void onNewGroup() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/group_create.fxml"));
             Stage dialog = new Stage();
@@ -213,13 +149,23 @@ public class MainController {
             GroupCreateController ctrl = loader.getController();
             ctrl.init(currentUser);
             dialog.showAndWait();
-            refreshGroups();
+
+            FX.runAsync(() -> {
+                try {
+                    return groupDAO.findByUser(currentUser.getId());
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    return Collections.<Group>emptyList();
+                }
+            }, (groups) -> groupsListView.getItems().setAll(groups), Throwable::printStackTrace);
+
         } catch (IOException | SQLException e) {
             e.printStackTrace();
         }
     }
 
-    public void onNewChannel() {
+    @FXML
+    private void onNewChannel() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/channel_create.fxml"));
             Stage dialog = new Stage();
@@ -229,11 +175,18 @@ public class MainController {
             ChannelCreateController ctrl = loader.getController();
             ctrl.init(currentUser);
             dialog.showAndWait();
-            refreshChannels();
-        } catch (IOException | SQLException e) {
+
+            FX.runAsync(() -> {
+                try {
+                    return channelDAO.findAll();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    return Collections.<Channel>emptyList();
+                }
+            }, (channels) -> channelsListView.getItems().setAll(channels), Throwable::printStackTrace);
+
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    private record InitResult(UserDAO userDAO, GroupDAO groupDAO, ChannelDAOImpl channelDAO, List<User> users, List<Group> groups, List<Channel> channels) {}
-
 }

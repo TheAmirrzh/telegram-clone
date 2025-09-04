@@ -19,20 +19,26 @@
   <center>
     <HBox spacing="12">
       <!-- Users -->
-      <VBox spacing="6" prefWidth="220" padding="8">
-        <Label text="Users" style="-fx-font-weight:bold;"/>
+      <VBox spacing="6" prefWidth="220">
+        <padding>
+          <Insets top="8" right="8" bottom="8" left="8"/>
+        </padding>        <Label text="Users" style="-fx-font-weight:bold;"/>
         <ListView fx:id="usersListView" prefHeight="520" />
       </VBox>
 
       <!-- Groups -->
-      <VBox spacing="6" prefWidth="220" padding="8">
-        <Label text="Groups" style="-fx-font-weight:bold;"/>
+      <VBox spacing="6" prefWidth="220">
+        <padding>
+          <Insets top="8" right="8" bottom="8" left="8"/>
+        </padding>        <Label text="Groups" style="-fx-font-weight:bold;"/>
         <ListView fx:id="groupsListView" prefHeight="520" />
       </VBox>
 
       <!-- Channels + Profile -->
-      <VBox spacing="8" prefWidth="260" padding="8">
-        <Label text="Channels" style="-fx-font-weight:bold;"/>
+      <VBox spacing="6" prefWidth="220">
+        <padding>
+          <Insets top="8" right="8" bottom="8" left="8"/>
+        </padding>        <Label text="Channels" style="-fx-font-weight:bold;"/>
         <ListView fx:id="channelsListView" prefHeight="260"/>
 
         <Separator/>
