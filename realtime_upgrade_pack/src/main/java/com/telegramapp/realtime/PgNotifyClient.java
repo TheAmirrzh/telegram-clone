@@ -1,6 +1,5 @@
 package com.telegramapp.realtime;
 
-import com.telegramapp.util.DB;
 import org.postgresql.PGConnection;
 import org.postgresql.PGNotification;
 

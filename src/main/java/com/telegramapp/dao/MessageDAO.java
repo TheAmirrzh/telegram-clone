@@ -10,4 +10,6 @@ public interface MessageDAO {
     void save(Message message) throws SQLException;
     List<Message> findConversation(String receiverType, String receiverId, String currentUserId) throws SQLException;
     List<Message> findNewMessagesAfter(String receiverType, String receiverId, String currentUserId, LocalDateTime after) throws SQLException;
+    void delete(String id) throws SQLException;
+
 }

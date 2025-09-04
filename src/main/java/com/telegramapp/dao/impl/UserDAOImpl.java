@@ -113,4 +113,13 @@ public class UserDAOImpl implements UserDAO {
             }
         }
     }
+    @Override
+    public void delete(String id) throws SQLException {
+        String sql = "DELETE FROM users WHERE id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, id);
+            ps.executeUpdate();
+        }
+    }
 }

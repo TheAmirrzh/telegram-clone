@@ -121,4 +121,13 @@ public class MessageDAOImpl implements MessageDAO {
         }
         return list;
     }
+    @Override
+    public void delete(String id) throws SQLException {
+        String sql = "DELETE FROM messages WHERE id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, id);
+            ps.executeUpdate();
+        }
+    }
 }

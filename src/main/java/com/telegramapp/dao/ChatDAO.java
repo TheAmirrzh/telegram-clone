@@ -1,6 +1,6 @@
 package com.telegramapp.dao;
 
-import com.telegramapp.util.DB;
+import com.telegramapp.db.DBConnection;
 
 import java.sql.*;
 import java.util.UUID;
@@ -11,7 +11,7 @@ public class ChatDAO {
         UUID u2 = a.compareTo(b) < 0 ? b : a;
         String select = "SELECT id FROM private_chats WHERE user1=? AND user2=?";
         String insert = "INSERT INTO private_chats (user1, user2) VALUES (?, ?) ON CONFLICT (user1, user2) DO NOTHING RETURNING id";
-        try (Connection c = DB.getConnection()){
+        try (Connection c = DBConnection.getInstance().getConnection()){
             try (PreparedStatement ps = c.prepareStatement(select)){
                 ps.setObject(1, u1); ps.setObject(2, u2);
                 try (ResultSet rs = ps.executeQuery()){

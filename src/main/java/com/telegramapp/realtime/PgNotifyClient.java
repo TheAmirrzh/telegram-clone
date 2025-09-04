@@ -1,6 +1,5 @@
 package com.telegramapp.realtime;
 
-import com.telegramapp.util.DB;
 import org.postgresql.PGConnection;
 import org.postgresql.PGNotification;
 
@@ -11,6 +10,7 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
+import com.telegramapp.db.DBConnection;
 
 /**
  * PgNotifyClient manages a dedicated Postgres connection that LISTENs on channels
@@ -37,7 +37,7 @@ public class PgNotifyClient implements AutoCloseable {
 
     public synchronized void start() throws SQLException {
         if (running) return;
-        conn = DB.getDataSource().getConnection();
+        conn = DBConnection.getInstance().getDataSource().getConnection();
         pgConn = conn.unwrap(PGConnection.class);
         running = true;
         loopThread = new Thread(this::loop, "PgNotifyClient-Loop");
@@ -87,7 +87,7 @@ public class PgNotifyClient implements AutoCloseable {
                     Thread.sleep(Duration.ofSeconds(2).toMillis());
                 } catch (InterruptedException ie) { /* ignore */ }
                 try {
-                    conn = DB.getDataSource().getConnection();
+                    conn = DBConnection.getInstance().getDataSource().getConnection();
                     pgConn = conn.unwrap(PGConnection.class);
                     // re-listen channels
                     for (String ch : new HashSet<>(channels)) {

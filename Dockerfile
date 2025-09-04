@@ -37,4 +37,4 @@ ENV DB_PASS=telegram_pass
 
 # Use a simple entrypoint that runs the app classpath with dependencies
 # Note: com.telegram.App is the JavaFX Application main.
-ENTRYPOINT ["sh","-c","java -cp 'app.jar:lib/*' com.telegram.App"]
+ENTRYPOINT ["sh","-c","java -cp 'app.jar:lib/*' com.telegramapp.App"]

@@ -14,6 +14,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.layout.Region;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -27,6 +28,7 @@ public class MainController {
     @FXML private ListView<Channel> channelsListView;
     @FXML private Label profileName;
     @FXML private Label profileUsername;
+    @FXML private Region spacer; // <-- ADD THIS LINE
 
     private User currentUser;
     private UserDAO userDAO;
@@ -37,18 +39,51 @@ public class MainController {
         this.currentUser = u;
         profileName.setText(u.getDisplayName());
         profileUsername.setText("@" + u.getUsername());
-        try {
-            this.userDAO = new UserDAOImpl();
-            this.groupDAO = new GroupDAOImpl();
-            this.channelDAO = new ChannelDAOImpl();
-            setupCellFactories();
-            refreshUsers();
-            refreshGroups();
-            refreshChannels();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+
+        // This is safe to run on the UI thread as it only configures existing components
+        setupCellFactories();
+
+        // Asynchronously initialize DAOs and load all data
+        com.telegramapp.util.FX.runAsync(() -> {
+            // --- THIS ENTIRE BLOCK NOW RUNS IN THE BACKGROUND ---
+            try {
+                // 1. Instantiate DAOs in the background (this creates the connection pool)
+                UserDAO uDAO = new UserDAOImpl();
+                GroupDAO gDAO = new GroupDAOImpl();
+                ChannelDAOImpl cDAO = new ChannelDAOImpl();
+
+                // 2. Fetch data using the new DAO instances
+                List<User> users = uDAO.findAllExcept(currentUser.getId());
+                List<Group> groups = gDAO.findByUser(currentUser.getId());
+                List<Channel> channels = cDAO.findAll();
+
+                // 3. Return a result object containing everything
+                return new InitResult(uDAO, gDAO, cDAO, users, groups, channels);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        }, (result) -> {
+            // --- THIS BLOCK RUNS ON THE UI THREAD ONCE THE BACKGROUND TASK IS DONE ---
+            if (result != null) {
+                // 1. Assign the fully initialized DAOs to the controller's fields
+                this.userDAO = result.userDAO();
+                this.groupDAO = result.groupDAO();
+                this.channelDAO = result.channelDAO();
+
+                // 2. Update the UI with the loaded data
+                usersListView.getItems().setAll(result.users());
+                groupsListView.getItems().setAll(result.groups());
+                channelsListView.getItems().setAll(result.channels());
+            }
+        }, (error) -> {
+            // Handle any unexpected errors
+            error.printStackTrace();
+        });
     }
+
+    // Ensure this record is at the end of your MainController class
+    private record LoadedData(List<User> users, List<Group> groups, List<Channel> channels) {}
 
     private void setupCellFactories() {
         usersListView.setCellFactory(lv -> new ListCell<>() {
@@ -119,7 +154,7 @@ public class MainController {
 
     private void openPrivateChat(User other) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/chat.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
             Scene scene = new Scene(loader.load());
             ChatController ctrl = loader.getController();
             ctrl.init(currentUser, "USER", other.getId());
@@ -136,7 +171,7 @@ public class MainController {
 
     private void openGroupChat(Group g) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/chat.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
             Scene scene = new Scene(loader.load());
             ChatController ctrl = loader.getController();
             ctrl.init(currentUser, "GROUP", g.getId());
@@ -153,7 +188,7 @@ public class MainController {
 
     private void openChannel(Channel c) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/chat.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
             Scene scene = new Scene(loader.load());
             ChatController ctrl = loader.getController();
             ctrl.init(currentUser, "CHANNEL", c.getId());
@@ -170,7 +205,7 @@ public class MainController {
 
     public void onNewGroup() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/group_create.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/group_create.fxml"));
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.setTitle("Create Group");
@@ -186,7 +221,7 @@ public class MainController {
 
     public void onNewChannel() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/telegram/ui/views/channel_create.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/channel_create.fxml"));
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.setTitle("Create Channel");
@@ -199,4 +234,6 @@ public class MainController {
             e.printStackTrace();
         }
     }
+    private record InitResult(UserDAO userDAO, GroupDAO groupDAO, ChannelDAOImpl channelDAO, List<User> users, List<Group> groups, List<Channel> channels) {}
+
 }
