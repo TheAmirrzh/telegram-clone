@@ -3,7 +3,11 @@ package com.telegramapp.ui.controllers;
 import com.telegramapp.dao.impl.ChannelDAOImpl;
 import com.telegramapp.dao.impl.GroupDAOImpl;
 import com.telegramapp.dao.impl.UserDAOImpl;
-import com.telegramapp.model.*;
+import com.telegramapp.model.Channel;
+import com.telegramapp.model.ChannelSubscriberInfo;
+import com.telegramapp.model.Group;
+import com.telegramapp.model.GroupMemberInfo;
+import com.telegramapp.model.User;
 import com.telegramapp.util.FX;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -64,16 +68,10 @@ public class MembersViewController {
                 } else if (chatEntity instanceof Channel) {
                     Platform.runLater(() -> titleLabel.setText("Channel Subscribers"));
                     Channel channel = (Channel) chatEntity;
-                    ChannelDAOImpl channelDAO = new ChannelDAOImpl();
-                    List<ChannelSubscriberInfo> subscribersInfo = channelDAO.findSubscribersWithInfo(channel.getId());
-                    isCurrentUserAdmin = subscribersInfo.stream()
+                    List<ChannelSubscriberInfo> subsInfo = new ChannelDAOImpl().findSubscribersWithInfo(channel.getId());
+                    isCurrentUserAdmin = subsInfo.stream()
                             .anyMatch(s -> s.getUserId().equals(currentUser.getId()) && ("OWNER".equals(s.getRole()) || "ADMIN".equals(s.getRole())));
-
-                    // UI Hint: Regular subscribers can't see the full list, but admins can.
-                    if (!isCurrentUserAdmin) {
-                        return Collections.<User>emptyList();
-                    }
-                    currentMemberIds = subscribersInfo.stream().map(ChannelSubscriberInfo::getUserId).collect(Collectors.toList());
+                    currentMemberIds = subsInfo.stream().map(ChannelSubscriberInfo::getUserId).collect(Collectors.toList());
                     return new UserDAOImpl().findByIds(currentMemberIds);
                 }
             } catch (SQLException e) {
@@ -81,10 +79,7 @@ public class MembersViewController {
             }
             return Collections.<User>emptyList();
         }, (List<User> users) -> {
-            if (chatEntity instanceof Channel && !isCurrentUserAdmin) {
-                membersListView.getItems().clear();
-                membersListView.setPlaceholder(new Label("Only channel admins can see the full subscriber list."));
-            } else if (users != null) {
+            if (users != null) {
                 membersListView.getItems().setAll(users);
                 membersListView.setCellFactory(lv -> new ListCell<>() {
                     @Override
@@ -98,7 +93,6 @@ public class MembersViewController {
             updateButtonStates();
         }, null);
     }
-
 
     private void updateButtonStates() {
         boolean adminControlsVisible = isCurrentUserAdmin && selectedMember != null && !selectedMember.getId().equals(currentUser.getId());
@@ -115,7 +109,9 @@ public class MembersViewController {
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.initOwner(titleLabel.getScene().getWindow());
             dialog.setTitle("Add New Member");
-            dialog.setScene(new Scene(loader.load()));
+            Scene scene = new Scene(loader.load());
+            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+            dialog.setScene(scene);
             AddMemberController ctrl = loader.getController();
             ctrl.initData(chatEntity, currentMemberIds);
             dialog.showAndWait();
@@ -125,7 +121,6 @@ public class MembersViewController {
             FX.showError("Failed to open the Add Member window.");
         }
     }
-
 
     @FXML
     private void onPromote() {
@@ -182,3 +177,4 @@ public class MembersViewController {
         ((Stage) titleLabel.getScene().getWindow()).close();
     }
 }
+

@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
 <?import javafx.scene.image.Image?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.SplitPane?>
 
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.MainController"
       styleClass="main-container" fx:id="mainContainer">
@@ -14,7 +21,8 @@
       <Insets top="8" right="12" bottom="8" left="12"/>
     </padding>
 
-    <ImageView fitHeight="40" fitWidth="40">
+    <!-- FIX: Added fx:id to the logo ImageView -->
+    <ImageView fx:id="logoImageView" fitHeight="40" fitWidth="40">
       <image>
         <Image url="@../assets/telegram_logo.png" />
       </image>
@@ -23,7 +31,7 @@
     <Region HBox.hgrow="ALWAYS"/>
 
     <!-- Profile Bubble -->
-    <HBox fx:id="profileContainer" alignment="CENTER_RIGHT" styleClass="profile-bubble" onMouseClicked="#onEditProfile">
+    <HBox fx:id="profileContainer" alignment="CENTER_RIGHT" styleClass="profile-bubble" spacing="10">
       <VBox alignment="CENTER_RIGHT">
         <Label fx:id="profileNameLabel" text="Profile Name"/>
         <Label fx:id="profileUsernameLabel" text="@username" styleClass="username-label"/>
@@ -31,10 +39,14 @@
       <ImageView fx:id="profileImageView" fitHeight="40" fitWidth="40"/>
     </HBox>
 
-    <Button text="New Group" onAction="#onNewGroup" styleClass="button"/>
-    <Button text="New Channel" onAction="#onNewChannel" styleClass="button"/>
+    <HBox spacing="10" alignment="CENTER_LEFT">
+      <padding>
+        <Insets left="20"/>
+      </padding>
+      <Button text="New Group" onAction="#onNewGroup" styleClass="button"/>
+      <Button text="New Channel" onAction="#onNewChannel" styleClass="button"/>
+    </HBox>
 
-    <!-- This StackPane now correctly omits the onAction attribute -->
     <StackPane fx:id="themeToggleContainer" styleClass="theme-toggle-container">
       <ImageView fx:id="sunIcon" styleClass="theme-icon" fitWidth="20" fitHeight="20">
         <image><Image url="@../assets/sun_icon.png"/></image>
@@ -84,4 +96,3 @@
   </SplitPane>
 
 </VBox>
-

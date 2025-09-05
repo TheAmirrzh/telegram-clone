@@ -5,6 +5,6 @@ import java.util.List;
 
 public interface TypingDAO {
     void setTyping(String chatId, String userId) throws SQLException;
-    List<String> getTypingUsers(String chatId, int secondsWindow) throws SQLException;
+    List<String> getTypingUsers(String chatId, String currentUserId, int secondsWindow) throws SQLException;
 }
 

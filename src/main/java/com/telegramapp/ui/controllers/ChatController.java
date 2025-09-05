@@ -32,6 +32,9 @@ import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.scene.Cursor;
+import java.awt.Desktop;
+
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -148,7 +151,7 @@ public class ChatController {
         if (typingService == null) return;
         FX.runAsync(() -> {
             try {
-                List<String> typingUserIds = typingService.getTypingUsers(receiverId, currentUser.getId());
+                List<String> typingUserIds = typingService.getTypingUsers(receiverId, currentUser.getId(), 3);
                 return userCache.values().stream()
                         .filter(u -> typingUserIds.contains(u.getId()))
                         .map(User::getDisplayName)
@@ -258,6 +261,23 @@ public class ChatController {
             try (FileInputStream fis = new FileInputStream(m.getMediaPath())) {
                 imageView.setImage(new Image(fis));
             } catch (IOException e) { e.printStackTrace(); }
+
+            // FIX: Add click handler to open the image
+            imageView.setCursor(Cursor.HAND);
+            imageView.setOnMouseClicked(event -> {
+                try {
+                    File file = new File(m.getMediaPath());
+                    if (file.exists()) {
+                        Desktop.getDesktop().open(file);
+                    } else {
+                        FX.showError("Attachment not found at: " + m.getMediaPath());
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    FX.showError("Could not open the attachment.");
+                }
+            });
+
             bubble.getChildren().add(imageView);
         }
 
@@ -386,7 +406,9 @@ public class ChatController {
                 dialog.initModality(Modality.APPLICATION_MODAL);
                 dialog.initOwner(chatHeader.getScene().getWindow());
                 dialog.setTitle("User Profile");
-                dialog.setScene(new Scene(loader.load()));
+                Scene scene = new Scene(loader.load());
+                scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+                dialog.setScene(scene);
                 ProfileController ctrl = loader.getController();
                 ctrl.initData((User) chatEntity, currentUser);
                 dialog.showAndWait();
@@ -403,7 +425,9 @@ public class ChatController {
                 dialog.initModality(Modality.APPLICATION_MODAL);
                 dialog.initOwner(chatHeader.getScene().getWindow());
                 dialog.setTitle("Manage Members");
-                dialog.setScene(new Scene(loader.load()));
+                Scene scene = new Scene(loader.load());
+                scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+                dialog.setScene(scene);
                 MembersViewController ctrl = loader.getController();
                 ctrl.loadMembers(currentUser, chatEntity);
                 dialog.showAndWait();

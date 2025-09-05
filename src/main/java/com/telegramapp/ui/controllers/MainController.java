@@ -1,6 +1,5 @@
 package com.telegramapp.ui.controllers;
 
-import com.telegramapp.App;
 import com.telegramapp.dao.impl.ChannelDAOImpl;
 import com.telegramapp.dao.impl.GroupDAOImpl;
 import com.telegramapp.dao.impl.MessageDAOImpl;
@@ -11,6 +10,7 @@ import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -24,7 +24,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -60,6 +59,7 @@ public class MainController {
     @FXML private StackPane themeToggleContainer;
     @FXML private ImageView sunIcon;
     @FXML private ImageView moonIcon;
+    @FXML private ImageView logoImageView; // Reference to the logo
 
     private User currentUser;
     private UserDAOImpl userDAO;
@@ -68,7 +68,10 @@ public class MainController {
     private MessageDAOImpl messageDAO;
     private ChatController activeChatController;
     private boolean isDarkMode = false;
-    private ScheduledExecutorService listRefreshScheduler;
+    private ScheduledExecutorService scheduler;
+
+    private Image lightLogo;
+    private Image darkLogo;
 
 
     @FXML
@@ -77,34 +80,35 @@ public class MainController {
         this.groupDAO = new GroupDAOImpl();
         this.channelDAO = new ChannelDAOImpl();
         this.messageDAO = new MessageDAOImpl();
+
+        // Load logos once
+        lightLogo = new Image(getClass().getResourceAsStream("/assets/telegram_logo.png"));
+        darkLogo = new Image(getClass().getResourceAsStream("/assets/telegram_logo_dark.png"));
+
         setupSelectionListeners();
         profileContainer.setOnMouseClicked(event -> onEditProfile());
         themeToggleContainer.setOnMouseClicked(event -> toggleTheme());
         sunIcon.setOpacity(0);
         moonIcon.setOpacity(1);
-
-        listRefreshScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r);
-            t.setDaemon(true);
-            return t;
-        });
-        listRefreshScheduler.scheduleAtFixedRate(this::loadAllChatLists, 0, 5, TimeUnit.SECONDS);
     }
 
     public void setCurrentUser(User u) {
         this.currentUser = u;
-        App.setCurrentUserId(u.getId());
-        FX.runAsync(() -> {
-            try {
-                userDAO.updateUserStatus(currentUser.getId(), "Online");
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }, () -> {
+        if (this.currentUser != null) {
             refreshProfileView();
             loadAllChatLists();
-        }, Throwable::printStackTrace);
+            startPollingForChatListUpdates();
+        }
     }
+
+    private void startPollingForChatListUpdates() {
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+        }
+        scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler.scheduleAtFixedRate(this::loadAllChatLists, 5, 5, TimeUnit.SECONDS);
+    }
+
 
     private void toggleTheme() {
         isDarkMode = !isDarkMode;
@@ -113,10 +117,12 @@ public class MainController {
 
         if (isDarkMode) {
             mainContainer.getStyleClass().add("theme-dark");
+            logoImageView.setImage(darkLogo); // Set dark logo
             sunFade.setToValue(1);
             moonFade.setToValue(0);
         } else {
             mainContainer.getStyleClass().remove("theme-dark");
+            logoImageView.setImage(lightLogo); // Set light logo
             sunFade.setToValue(0);
             moonFade.setToValue(1);
         }
@@ -166,7 +172,7 @@ public class MainController {
             }
         }
         imageView.setImage(avatarImage);
-        if (imageView.getClip() == null) {
+        if (imageView.getClip() == null || !(imageView.getClip() instanceof Circle)) {
             imageView.setClip(new Circle(20, 20, 20));
         }
     }
@@ -179,19 +185,12 @@ public class MainController {
             private final Label lastMessageLabel;
             private final Label unreadCountLabel;
             private final StackPane notificationPane;
-            private final Circle statusCircle;
 
             {
                 avatar = new ImageView();
                 avatar.setFitHeight(40);
                 avatar.setFitWidth(40);
                 avatar.setClip(new Circle(20, 20, 20));
-
-                statusCircle = new Circle(6);
-                statusCircle.setStroke(Color.WHITE);
-                statusCircle.setStrokeWidth(1.5);
-                StackPane avatarPane = new StackPane(avatar, statusCircle);
-                avatarPane.setAlignment(Pos.BOTTOM_RIGHT);
 
                 nameLabel = new Label();
                 nameLabel.getStyleClass().add("chat-list-name-label");
@@ -213,8 +212,9 @@ public class MainController {
                 HBox mainContent = new HBox(5, textContainer, spacer, notificationPane);
                 mainContent.setAlignment(Pos.CENTER_LEFT);
 
-                content = new HBox(10, avatarPane, mainContent);
+                content = new HBox(10, avatar, mainContent);
                 content.setAlignment(Pos.CENTER_LEFT);
+                content.setPadding(new Insets(5));
             }
 
             @Override
@@ -231,14 +231,6 @@ public class MainController {
                         notificationPane.setVisible(true);
                     } else {
                         notificationPane.setVisible(false);
-                    }
-
-                    if (item.getChatObject() instanceof User) {
-                        statusCircle.setVisible(true);
-                        String status = ((User) item.getChatObject()).getStatus();
-                        statusCircle.setFill("Online".equals(status) ? Color.LIMEGREEN : Color.GRAY);
-                    } else {
-                        statusCircle.setVisible(false);
                     }
 
                     loadChatAvatar(item.getChatObject(), avatar);
@@ -279,10 +271,7 @@ public class MainController {
     }
 
     public void loadAllChatLists() {
-        if (currentUser == null) {
-            return; // FIX: Do not proceed if the user is not logged in yet.
-        }
-
+        if (currentUser == null) return;
         FX.runAsync(() -> {
             try {
                 List<User> users = userDAO.findAllExcept(currentUser.getId());
@@ -339,14 +328,14 @@ public class MainController {
 
             } catch (Exception e) {
                 e.printStackTrace();
-                return Collections.<List<ChatListItem>>emptyList();
+                return Collections.emptyList();
             }
         }, (lists) -> {
             if (lists.size() == 3) {
                 Platform.runLater(() -> {
-                    usersListView.getItems().setAll(lists.get(0));
-                    groupsListView.getItems().setAll(lists.get(1));
-                    channelsListView.getItems().setAll(lists.get(2));
+                    usersListView.getItems().setAll((List<ChatListItem>) lists.get(0));
+                    groupsListView.getItems().setAll((List<ChatListItem>) lists.get(1));
+                    channelsListView.getItems().setAll((List<ChatListItem>) lists.get(2));
                 });
             }
         }, Throwable::printStackTrace);
@@ -396,7 +385,9 @@ public class MainController {
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.setTitle("Create Group");
-            dialog.setScene(new Scene(loader.load()));
+            Scene scene = new Scene(loader.load());
+            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+            dialog.setScene(scene);
             GroupCreateController ctrl = loader.getController();
             ctrl.init(currentUser);
             dialog.showAndWait();
@@ -413,7 +404,9 @@ public class MainController {
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.setTitle("Create Channel");
-            dialog.setScene(new Scene(loader.load()));
+            Scene scene = new Scene(loader.load());
+            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+            dialog.setScene(scene);
             ChannelCreateController ctrl = loader.getController();
             ctrl.init(currentUser);
             dialog.showAndWait();
@@ -431,7 +424,9 @@ public class MainController {
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.initOwner(profileContainer.getScene().getWindow());
             dialog.setTitle("Edit Profile");
-            dialog.setScene(new Scene(loader.load()));
+            Scene scene = new Scene(loader.load());
+            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+            dialog.setScene(scene);
             ProfileController ctrl = loader.getController();
             ctrl.initData(currentUser, currentUser);
             dialog.showAndWait();
@@ -441,12 +436,9 @@ public class MainController {
         }
     }
 
-    public void shutdown() {
-        if (listRefreshScheduler != null) {
-            listRefreshScheduler.shutdownNow();
-        }
-        if (activeChatController != null) {
-            activeChatController.onClose();
+    public void onClose() {
+        if (scheduler != null) {
+            scheduler.shutdownNow();
         }
     }
 }
