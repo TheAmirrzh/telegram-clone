@@ -3,6 +3,7 @@ package com.telegramapp.ui.controllers;
 import com.telegramapp.model.User;
 import com.telegramapp.service.AuthService;
 import com.telegramapp.util.FX;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -12,14 +13,32 @@ import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 public class LoginController {
     @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
     @FXML private Label messageLabel;
 
-    // AuthService is initialized in the background to prevent UI blocking
     private AuthService authService;
+
+    @FXML
+    private void initialize() {
+        // Pre-load the AuthService in the background so it's ready when the user clicks.
+        // This avoids a delay on the first click.
+        FX.runAsync(() -> {
+            try {
+                if (authService == null) {
+                    authService = new AuthService();
+                }
+            } catch (SQLException e) {
+                // We can't do much if the DB isn't available, show error on UI.
+                Platform.runLater(() -> messageLabel.setText("Error: Database not available."));
+                e.printStackTrace();
+            }
+            return null;
+        }, null, null);
+    }
 
     @FXML
     private void onLogin() {
@@ -32,6 +51,7 @@ public class LoginController {
         messageLabel.setText("Logging in...");
         FX.runAsync(() -> {
             try {
+                // Ensure authService is initialized
                 if (authService == null) {
                     authService = new AuthService();
                 }
@@ -66,8 +86,10 @@ public class LoginController {
                 if (authService == null) {
                     authService = new AuthService();
                 }
+                // Assuming a simple display name for registration
                 return authService.register(u, p, u);
             } catch (Exception e) {
+                // The exception message from AuthService is user-friendly ("Username already exists")
                 throw new RuntimeException(e.getMessage(), e);
             }
         }, (newUser) -> {
@@ -83,14 +105,20 @@ public class LoginController {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/main.fxml"));
             Scene scene = new Scene(loader.load());
+            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+
             MainController ctrl = loader.getController();
             ctrl.setCurrentUser(user);
+
             Stage stage = (Stage) usernameField.getScene().getWindow();
             stage.setTitle("Telegram - " + user.getDisplayName());
             stage.setScene(scene);
+            stage.centerOnScreen(); // Center the new, larger window
         } catch (IOException ex) {
             ex.printStackTrace();
             messageLabel.setText("Failed to load main window.");
+            FX.showError("Critical Error: Could not load main application window. Check FXML files.");
         }
     }
 }
+

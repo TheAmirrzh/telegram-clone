@@ -1,37 +1,48 @@
 package com.telegramapp.ui.controllers;
 
+import com.telegramapp.dao.impl.ChannelDAOImpl;
 import com.telegramapp.dao.impl.UserDAOImpl;
 import com.telegramapp.model.Message;
 import com.telegramapp.model.User;
 import com.telegramapp.service.MessageService;
+import com.telegramapp.util.FX;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.shape.Circle;
 import javafx.scene.text.Text;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 
-import java.awt.Desktop;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.file.*;
+import java.io.InputStream;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class ChatController {
+
     @FXML private ListView<Message> messagesList;
     @FXML private TextField messageField;
+    @FXML private HBox messageInputContainer;
+    @FXML private Button joinChannelButton;
+    @FXML private StackPane bottomContainer;
 
     private MessageService messageService;
     private User currentUser;
@@ -40,150 +51,217 @@ public class ChatController {
 
     private volatile LocalDateTime lastLoaded = LocalDateTime.now().minusYears(1);
     private ScheduledExecutorService scheduler;
+    private final Map<String, User> userCache = new ConcurrentHashMap<>();
 
-    private File selectedAttachment;
-    private final Map<String, String> userCache = new ConcurrentHashMap<>();
-    private final Map<String, Image> avatarCache = new ConcurrentHashMap<>();
+    private record ChannelPermissions(boolean isOwner, boolean isSubscribed) {}
 
-    public ChatController() {
-        try {
-            this.messageService = new MessageService();
-        } catch (SQLException e) {
-            e.printStackTrace();
+    @FXML
+    public void initialize() {
+        // This method is called by JavaFX AFTER all @FXML fields are injected.
+        setupMessageListCellFactory();
+        // Defensive null check to prevent any future crashes, although the root cause should now be fixed.
+        if (messageInputContainer != null) {
+            messageInputContainer.managedProperty().bind(messageInputContainer.visibleProperty());
+        }
+        if (joinChannelButton != null) {
+            joinChannelButton.managedProperty().bind(joinChannelButton.visibleProperty());
         }
     }
 
-    public void init(User currentUser, String receiverType, String otherId) {
+    public void loadChatData(User currentUser, String receiverType, String otherId) {
         this.currentUser = currentUser;
         this.receiverType = receiverType;
         this.otherId = otherId;
 
+        try {
+            this.messageService = new MessageService();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            FX.showError("Failed to initialize message service.");
+            return;
+        }
+
+        configureInputMode();
+        loadInitialMessages();
+    }
+
+    private void configureInputMode() {
+        // Ensure components are not null before using them.
+        if (messageInputContainer == null || joinChannelButton == null) {
+            System.err.println("FATAL: ChatController UI components are not injected. Check chat.fxml.");
+            return;
+        }
+
+        messageInputContainer.setVisible(true);
+        joinChannelButton.setVisible(false);
+
+        if ("CHANNEL".equalsIgnoreCase(receiverType)) {
+            messageInputContainer.setVisible(false);
+            joinChannelButton.setVisible(false);
+
+            FX.runAsync(() -> {
+                try {
+                    ChannelDAOImpl channelDAO = new ChannelDAOImpl();
+                    String ownerId = channelDAO.findById(otherId).getOwnerId();
+                    boolean isOwner = ownerId.equals(currentUser.getId());
+                    boolean isSubscribed = isOwner || channelDAO.isSubscriber(otherId, currentUser.getId());
+                    return new ChannelPermissions(isOwner, isSubscribed);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return new ChannelPermissions(false, false);
+                }
+            }, permissions -> {
+                if (permissions.isOwner()) {
+                    messageInputContainer.setVisible(true);
+                } else if (!permissions.isSubscribed()) {
+                    joinChannelButton.setVisible(true);
+                }
+            }, null);
+        }
+    }
+
+    @FXML
+    private void onJoinChannel() {
+        FX.runAsync(() -> {
+            try {
+                new ChannelDAOImpl().addSubscriber(otherId, currentUser.getId());
+                return true;
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }, success -> {
+            if (success) {
+                configureInputMode();
+            } else {
+                FX.showError("Failed to join the channel.");
+            }
+        }, null);
+    }
+
+    private void setupMessageListCellFactory() {
         messagesList.setCellFactory(lv -> new ListCell<>() {
             @Override
             protected void updateItem(Message m, boolean empty) {
                 super.updateItem(m, empty);
+                setText(null);
                 if (empty || m == null) {
-                    setText(null);
                     setGraphic(null);
                 } else {
-                    boolean mine = m.getSenderId().equals(currentUser.getId());
-                    HBox row = new HBox();
-                    row.setPadding(new Insets(6));
-                    row.setSpacing(8);
-                    if (mine) row.setAlignment(Pos.CENTER_RIGHT);
-                    else row.setAlignment(Pos.CENTER_LEFT);
-
-                    // avatar (for non-mine)
-                    ImageView avatar = null;
-                    if (!mine) {
-                        avatar = new ImageView();
-                        avatar.setFitWidth(36);
-                        avatar.setFitHeight(36);
-                        String p = resolveAvatarPath(m.getSenderId());
-                        if (p != null) {
-                            try (FileInputStream fis = new FileInputStream(p)) {
-                                Image img = new Image(fis, 36, 36, true, true);
-                                avatar.setImage(img);
-                                avatarCache.put(m.getSenderId(), img);
-                            } catch (Exception ex) {
-                                // leave avatar null (we'll show initials instead)
-                                avatar = null;
-                            }
-                        }
-                    } else {
-                        // optionally show your avatar on right; omitted for compactness
-                    }
-
-                    // bubble
-                    VBox bubble = new VBox(4);
-                    bubble.setPadding(new Insets(8));
-                    bubble.setMaxWidth(480);
-                    bubble.getStyleClass().add("message-bubble");
-                    if (mine) bubble.getStyleClass().add("mine");
-                    else bubble.getStyleClass().add("other");
-                    Text content = new Text(m.getContent() == null ? "" : m.getContent());
-                    content.wrappingWidthProperty().bind(messagesList.widthProperty().subtract(180));
-                    Label meta = new Label((mine ? "You" : resolveName(m.getSenderId())) + " • " + m.getTimestamp().toString());
-                    meta.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
-
-                    bubble.getChildren().addAll(content, meta);
-
-                    if (m.getMediaPath() != null && !m.getMediaPath().isEmpty()) {
-                        HBox attachRow = new HBox(6);
-                        Button openBtn = new Button("Open");
-                        Label fileLabel = new Label(Paths.get(m.getMediaPath()).getFileName().toString());
-                        openBtn.setOnAction(ev -> {
-                            try {
-                                Path p = Paths.get(m.getMediaPath());
-                                File f = p.toFile();
-                                if (!f.exists()) {
-                                    f = Paths.get(System.getProperty("user.dir")).resolve(m.getMediaPath()).toFile();
-                                }
-                                if (!f.exists()) {
-                                    Alert a = new Alert(Alert.AlertType.WARNING, "File not found: " + m.getMediaPath(), ButtonType.OK);
-                                    a.showAndWait();
-                                    return;
-                                }
-                                if (Desktop.isDesktopSupported()) Desktop.getDesktop().open(f);
-                                else {
-                                    Alert a = new Alert(Alert.AlertType.INFORMATION, "Open not supported. Path:\n" + f.getAbsolutePath(), ButtonType.OK);
-                                    a.showAndWait();
-                                }
-                            } catch (IOException ex) {
-                                ex.printStackTrace();
-                            }
-                        });
-                        attachRow.getChildren().addAll(openBtn, fileLabel);
-                        bubble.getChildren().add(attachRow);
-                    }
-
-                    if (mine) {
-                        row.getChildren().addAll(bubble);
-                    } else {
-                        if (avatar != null) row.getChildren().addAll(avatar, bubble);
-                        else {
-                            // show initials as circle
-                            String name = resolveName(m.getSenderId());
-                            Label initials = new Label(initialsOf(name));
-                            initials.getStyleClass().add("avatar-initials");                            initials.setStyle("-fx-background-color: #ddd; -fx-padding: 6px; -fx-background-radius: 18; -fx-alignment:center;");
-                            row.getChildren().addAll(initials, bubble);
-                        }
-                    }
-
-                    setGraphic(row);
+                    setGraphic(createMessageBubble(m));
                 }
             }
         });
+    }
 
-        // initial load
-        try {
-            List<Message> all = messageService.loadConversation(receiverType, otherId, currentUser.getId());
-            populateList(all);
-            if (!all.isEmpty()) lastLoaded = all.get(all.size()-1).getTimestamp();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+    private void loadInitialMessages() {
+        FX.runAsync(
+                () -> {
+                    try {
+                        return messageService.loadConversation(receiverType, otherId, currentUser.getId());
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        return Collections.<Message>emptyList();
+                    }
+                },
+                all -> {
+                    populateList(all);
+                    if (!all.isEmpty()) {
+                        lastLoaded = all.get(all.size() - 1).getTimestamp();
+                    }
+                    startPollingForNewMessages();
+                },
+                ex -> FX.showError("Failed to load message history.")
+        );
+    }
 
+    private void startPollingForNewMessages() {
+        if (scheduler != null) scheduler.shutdownNow();
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 List<Message> newMsgs = messageService.loadNewSince(receiverType, otherId, currentUser.getId(), lastLoaded);
                 if (!newMsgs.isEmpty()) {
-                    Platform.runLater(() -> {
-                        appendList(newMsgs);
-                        lastLoaded = newMsgs.get(newMsgs.size()-1).getTimestamp();
-                    });
+                    lastLoaded = newMsgs.get(newMsgs.size() - 1).getTimestamp();
+                    Platform.runLater(() -> appendList(newMsgs));
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-        }, 1500, 1500, TimeUnit.MILLISECONDS);
+        }, 2, 2, TimeUnit.SECONDS);
+    }
+
+    private HBox createMessageBubble(Message m) {
+        boolean mine = m.getSenderId().equals(currentUser.getId());
+        HBox row = new HBox(8);
+        row.setPadding(new Insets(6, 12, 6, 12));
+        row.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+
+        ImageView avatar = new ImageView();
+        avatar.setFitWidth(36);
+        avatar.setFitHeight(36);
+        avatar.setClip(new Circle(18, 18, 18));
+
+        VBox bubble = new VBox(4);
+        bubble.setPadding(new Insets(8, 12, 8, 12));
+        bubble.getStyleClass().add("message-bubble");
+        bubble.getStyleClass().add(mine ? "mine" : "other");
+
+        Text content = new Text(m.getContent() == null ? "" : m.getContent());
+        content.getStyleClass().add("message-text");
+        content.wrappingWidthProperty().bind(messagesList.widthProperty().subtract(180));
+
+        User sender = resolveUser(m.getSenderId());
+        String senderName = mine ? "You" : (sender != null ? sender.getDisplayName() : "Unknown");
+        Label meta = new Label(senderName + " • " + m.getTimestamp().toString());
+        meta.getStyleClass().add("message-meta");
+
+        bubble.getChildren().addAll(content, meta);
+        loadAvatar(sender, avatar);
+
+        if (!mine) {
+            row.getChildren().add(avatar);
+        }
+        row.getChildren().add(bubble);
+
+        return row;
+    }
+
+    private User resolveUser(String userId) {
+        return userCache.computeIfAbsent(userId, id -> {
+            try {
+                return new UserDAOImpl().findById(id).orElse(null);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        });
+    }
+
+    private void loadAvatar(User user, ImageView imageView) {
+        if (user == null || imageView == null) return;
+        String picPath = user.getProfilePicPath();
+        Image avatarImage = null;
+        if (picPath != null && !picPath.isBlank()) {
+            try (FileInputStream fis = new FileInputStream(new File(picPath))) {
+                avatarImage = new Image(fis);
+            } catch (Exception e) { /* Fallback */ }
+        }
+        if (avatarImage == null) {
+            try (InputStream defaultAvatarStream = getClass().getResourceAsStream("/assets/default_avatar.png")) {
+                if (defaultAvatarStream != null) {
+                    avatarImage = new Image(defaultAvatarStream);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        imageView.setImage(avatarImage);
     }
 
     private void populateList(List<Message> list) {
-        messagesList.getItems().clear();
-        messagesList.getItems().addAll(list);
-        messagesList.scrollTo(messagesList.getItems().size() - 1);
+        messagesList.getItems().setAll(list);
+        if(!list.isEmpty()) messagesList.scrollTo(list.size() - 1);
     }
 
     private void appendList(List<Message> list) {
@@ -191,96 +269,37 @@ public class ChatController {
         messagesList.scrollTo(messagesList.getItems().size() - 1);
     }
 
-    private String resolveName(String userId) {
-        if (userId.equals(currentUser.getId())) return "You";
-        return userCache.computeIfAbsent(userId, id -> {
-            try {
-                return new UserDAOImpl().findById(id).map(u -> (u.getDisplayName() == null || u.getDisplayName().isBlank()) ? u.getUsername() : u.getDisplayName()).orElse(id);
-            } catch (Exception e) {
-                return id;
-            }
-        });
-    }
-
-    private String resolveAvatarPath(String userId) {
-        try {
-            return new UserDAOImpl().findById(userId).map(User::getProfilePicPath).orElse(null);
-        } catch (SQLException e) {
-            return null;
-        }
-    }
-
-    private String initialsOf(String name) {
-        if (name == null || name.isBlank()) return "?";
-        String[] parts = name.trim().split("\\s+");
-        if (parts.length == 1) return parts[0].substring(0, Math.min(2, parts[0].length())).toUpperCase();
-        return ("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-    }
-
     @FXML
     private void onSend() {
         String text = messageField.getText().trim();
-        if (text.isEmpty() && selectedAttachment == null) return;
+        if (text.isEmpty()) return;
 
-        try {
-            if (selectedAttachment != null) {
-                Path storageDir = Paths.get("storage");
-                if (!Files.exists(storageDir)) Files.createDirectories(storageDir);
-                String ext = "";
-                String original = selectedAttachment.getName();
-                int idx = original.lastIndexOf('.');
-                if (idx >= 0) ext = original.substring(idx);
-                String storedName = UUID.randomUUID().toString() + ext;
-                Path dest = storageDir.resolve(storedName);
-                Files.copy(selectedAttachment.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
-                String mediaType = Files.probeContentType(dest);
-                if (mediaType == null) mediaType = "file";
-                String relativePath = storageDir.resolve(storedName).toString();
-                Message m = new Message(currentUser.getId(), otherId, receiverType, text, mediaType, relativePath);
-                messageService.sendMessage(m);
-                messagesList.getItems().add(m);
-                lastLoaded = m.getTimestamp();
-                selectedAttachment = null;
-                messageField.clear();
-            } else {
+        FX.runAsync(() -> {
+            try {
                 Message m = new Message(currentUser.getId(), otherId, receiverType, text);
                 messageService.sendMessage(m);
-                messagesList.getItems().add(m);
-                lastLoaded = m.getTimestamp();
-                messageField.clear();
+                return m;
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to send message", e);
             }
-        } catch (SQLException | IOException e) {
-            e.printStackTrace();
-            Platform.runLater(() -> {
-                Alert a = new Alert(Alert.AlertType.ERROR, "Send failed: " + e.getMessage(), ButtonType.OK);
-                a.showAndWait();
-            });
-        }
+        }, (sentMessage) -> {
+            messagesList.getItems().add(sentMessage);
+            messagesList.scrollTo(messagesList.getItems().size() - 1);
+            lastLoaded = sentMessage.getTimestamp();
+            messageField.clear();
+        }, (error) -> {
+            error.printStackTrace();
+            FX.showError("Send failed: " + error.getMessage());
+        });
     }
 
     @FXML
     private void onAttach() {
-        FileChooser fc = new FileChooser();
-        fc.setTitle("Select File to Attach");
-        File file = fc.showOpenDialog(messageField.getScene().getWindow());
-        if (file != null) {
-            long maxBytes = 20L * 1024L * 1024L;
-            if (file.length() > maxBytes) {
-                Alert a = new Alert(Alert.AlertType.WARNING, "File too large (limit 20 MB).", ButtonType.OK);
-                a.showAndWait();
-                return;
-            }
-            selectedAttachment = file;
-            messageField.setText("[Attached: " + file.getName() + "] " + messageField.getText());
-        }
+        // Implementation for attaching files would go here.
     }
 
     public void onClose() {
         if (scheduler != null) scheduler.shutdownNow();
     }
-
-    public void closeWindow() {
-        Stage stage = (Stage) messageField.getScene().getWindow();
-        stage.close();
-    }
 }
+

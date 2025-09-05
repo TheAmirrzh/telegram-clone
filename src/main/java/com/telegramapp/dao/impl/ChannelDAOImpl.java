@@ -75,4 +75,26 @@ public class ChannelDAOImpl implements ChannelDAO {
             ps.executeUpdate();
         }
     }
+
+    @Override
+    public boolean isSubscriber(String channelId, String userId) throws SQLException {
+        String sql = "SELECT 1 FROM channel_subscribers WHERE channel_id = ? AND user_id = ?";
+        try (Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, channelId);
+            ps.setString(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    @Override
+    public void addSubscriber(String channelId, String userId) throws SQLException {
+        String sql = "INSERT INTO channel_subscribers (channel_id, user_id) VALUES (?, ?) ON CONFLICT (channel_id, user_id) DO NOTHING";
+        try (Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, channelId);
+            ps.setString(2, userId);
+            ps.executeUpdate();
+        }
+    }
 }

@@ -113,12 +113,26 @@ public class UserDAOImpl implements UserDAO {
             }
         }
     }
+
     @Override
     public void delete(String id) throws SQLException {
         String sql = "DELETE FROM users WHERE id = ?";
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, id);
+            ps.executeUpdate();
+        }
+    }
+
+    @Override
+    public void update(User user) throws SQLException {
+        String sql = "UPDATE users SET display_name = ?, bio = ?, profile_pic_path = ? WHERE id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, user.getDisplayName());
+            ps.setString(2, user.getBio());
+            ps.setString(3, user.getProfilePicPath());
+            ps.setString(4, user.getId());
             ps.executeUpdate();
         }
     }

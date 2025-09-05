@@ -12,5 +12,7 @@ public interface UserDAO {
     List<User> findAll() throws SQLException;
     List<User> findAllExcept(String id) throws SQLException;
     void delete(String id) throws SQLException;
+    void update(User user) throws SQLException; // <-- ADD THIS LINE
+
 
 }

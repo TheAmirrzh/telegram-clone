@@ -34,12 +34,14 @@ public class User {
     public String getPasswordHash() { return passwordHash; }
     public String getDisplayName() { return displayName; }
     public String getBio(){ return bio; }
-    public void setBio(String bio){ this.bio = bio; }
-    public void setProfilePicPath(String p){ this.profilePicPath = p; }
     public String getProfilePicPath(){ return profilePicPath; }
-    public void setStatus(String s){ this.status = s; }
     public String getStatus(){ return status; }
 
+    // --- FIX: ADDED MISSING SETTER METHODS ---
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public void setBio(String bio){ this.bio = bio; }
+    public void setProfilePicPath(String p){ this.profilePicPath = p; }
+    public void setStatus(String s){ this.status = s; }
     public void setPasswordHash(String passwordHash){ this.passwordHash = passwordHash; }
 
     @Override

@@ -11,4 +11,7 @@ public interface ChannelDAO {
     List<Channel> findAll() throws SQLException;
     List<Channel> findByOwner(String ownerId) throws SQLException;
     void delete(String id) throws SQLException;
+    // New methods for checking and adding subscribers
+    boolean isSubscriber(String channelId, String userId) throws SQLException;
+    void addSubscriber(String channelId, String userId) throws SQLException;
 }

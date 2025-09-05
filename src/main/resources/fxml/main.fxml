@@ -1,52 +1,69 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
 
-<?import javafx.scene.layout.Region?>
-<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.ui.controllers.MainController">
-  <top>
-    <ToolBar>
-      <Label text="Telegram - Chats" style="-fx-font-weight:bold;"/>
-      <Region fx:id="spacer" HBox.hgrow="ALWAYS"/>
-      <Button text="New Group" onAction="#onNewGroup"/>
-      <Button text="New Channel" onAction="#onNewChannel"/>
-    </ToolBar>
-  </top>
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.MainController"
+      styleClass="main-container">
 
-  <center>
-    <HBox spacing="12">
-      <!-- Users -->
-      <VBox spacing="6" prefWidth="220">
-        <padding>
-          <Insets top="8" right="8" bottom="8" left="8"/>
-        </padding>        <Label text="Users" style="-fx-font-weight:bold;"/>
-        <ListView fx:id="usersListView" prefHeight="520" />
+  <!-- Top Toolbar -->
+  <HBox alignment="CENTER_LEFT" styleClass="top-toolbar">
+    <padding>
+      <Insets top="8" right="12" bottom="8" left="12"/>
+    </padding>
+    <Label text="Telegram" styleClass="header-title"/>
+    <Region HBox.hgrow="ALWAYS"/>
+
+    <!-- Profile Bubble -->
+    <HBox fx:id="profileContainer" alignment="CENTER_RIGHT" styleClass="profile-bubble" onMouseClicked="#onEditProfile">
+      <VBox alignment="CENTER_RIGHT">
+        <Label fx:id="profileNameLabel" text="Profile Name"/>
+        <Label fx:id="profileUsernameLabel" text="@username" styleClass="username-label"/>
       </VBox>
-
-      <!-- Groups -->
-      <VBox spacing="6" prefWidth="220">
-        <padding>
-          <Insets top="8" right="8" bottom="8" left="8"/>
-        </padding>        <Label text="Groups" style="-fx-font-weight:bold;"/>
-        <ListView fx:id="groupsListView" prefHeight="520" />
-      </VBox>
-
-      <!-- Channels + Profile -->
-      <VBox spacing="6" prefWidth="220">
-        <padding>
-          <Insets top="8" right="8" bottom="8" left="8"/>
-        </padding>        <Label text="Channels" style="-fx-font-weight:bold;"/>
-        <ListView fx:id="channelsListView" prefHeight="260"/>
-
-        <Separator/>
-
-        <Label text="Profile" style="-fx-font-weight:bold;"/>
-        <Label fx:id="profileName" text="Name"/>
-        <Label fx:id="profileUsername" text="@username" style="-fx-text-fill:#666;"/>
-      </VBox>
+      <ImageView fx:id="profileImageView" fitHeight="40" fitWidth="40"/>
     </HBox>
-  </center>
-</BorderPane>
+
+    <Button text="New Group" onAction="#onNewGroup"/>
+    <Button text="New Channel" onAction="#onNewChannel"/>
+  </HBox>
+
+  <!-- Main Content Area -->
+  <SplitPane dividerPositions="0.3" styleClass="main-split-pane" VBox.vgrow="ALWAYS">
+    <items>
+      <!-- Sidebar with lists -->
+      <VBox styleClass="sidebar">
+        <VBox VBox.vgrow="ALWAYS">
+          <padding>
+            <Insets top="8" right="8" bottom="8" left="8"/>
+          </padding>
+          <Label text="Users" styleClass="list-header"/>
+          <ListView fx:id="usersListView" VBox.vgrow="ALWAYS"/>
+        </VBox>
+        <VBox VBox.vgrow="ALWAYS">
+          <padding>
+            <Insets top="8" right="8" bottom="8" left="8"/>
+          </padding>
+          <Label text="Groups" styleClass="list-header"/>
+          <ListView fx:id="groupsListView" VBox.vgrow="ALWAYS"/>
+        </VBox>
+        <VBox VBox.vgrow="ALWAYS">
+          <padding>
+            <Insets top="8" right="8" bottom="8" left="8"/>
+          </padding>
+          <Label text="Channels" styleClass="list-header"/>
+          <ListView fx:id="channelsListView" VBox.vgrow="ALWAYS"/>
+        </VBox>
+      </VBox>
+
+      <!-- Main chat area -->
+      <StackPane fx:id="chatArea" styleClass="chat-area-background">
+        <children>
+          <Label fx:id="chatAreaPlaceholder" text="Select a chat to begin messaging"
+                 styleClass="chat-area-placeholder"/>
+        </children>
+      </StackPane>
+    </items>
+  </SplitPane>
+
+</VBox>
