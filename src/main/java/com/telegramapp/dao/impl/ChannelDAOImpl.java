@@ -16,11 +16,46 @@ public class ChannelDAOImpl implements ChannelDAO {
         this.ds = DBConnection.getInstance().getDataSource();
     }
 
-    // For tests
-    public ChannelDAOImpl(DataSource dataSource) {
-        this.ds = dataSource;
+    // --- New Method Implementation ---
+    @Override
+    public List<String> findSubscribers(String channelId) throws SQLException {
+        List<String> subscriberIds = new ArrayList<>();
+        String sql = "SELECT user_id FROM channel_subscribers WHERE channel_id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, channelId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    subscriberIds.add(rs.getString("user_id"));
+                }
+            }
+        }
+        return subscriberIds;
     }
 
+    @Override
+    public void addSubscriber(String channelId, String userId) throws SQLException {
+        String sql = "INSERT INTO channel_subscribers (channel_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
+        try (Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, channelId);
+            ps.setString(2, userId);
+            ps.executeUpdate();
+        }
+    }
+
+    @Override
+    public boolean isSubscriber(String channelId, String userId) throws SQLException {
+        String sql = "SELECT 1 FROM channel_subscribers WHERE channel_id = ? AND user_id = ?";
+        try (Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, channelId);
+            ps.setString(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    // --- Paste existing methods from your file below this line ---
     @Override
     public void save(Channel channel) throws SQLException {
         String sql = "INSERT INTO channels (id, name, owner_id) VALUES (?, ?, ?)";
@@ -75,26 +110,5 @@ public class ChannelDAOImpl implements ChannelDAO {
             ps.executeUpdate();
         }
     }
-
-    @Override
-    public boolean isSubscriber(String channelId, String userId) throws SQLException {
-        String sql = "SELECT 1 FROM channel_subscribers WHERE channel_id = ? AND user_id = ?";
-        try (Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, channelId);
-            ps.setString(2, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
-            }
-        }
-    }
-
-    @Override
-    public void addSubscriber(String channelId, String userId) throws SQLException {
-        String sql = "INSERT INTO channel_subscribers (channel_id, user_id) VALUES (?, ?) ON CONFLICT (channel_id, user_id) DO NOTHING";
-        try (Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, channelId);
-            ps.setString(2, userId);
-            ps.executeUpdate();
-        }
-    }
 }
+

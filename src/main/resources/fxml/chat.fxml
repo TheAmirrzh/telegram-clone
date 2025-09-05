@@ -2,33 +2,43 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
-<!-- This FXML is verified to match the ChatController.java -->
-<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.ChatController">
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.ChatController">
+  <top>
+    <HBox fx:id="chatHeader" alignment="CENTER_LEFT" spacing="10" styleClass="chat-header">
+      <padding>
+        <Insets bottom="8" left="12" right="12" top="8" />
+      </padding>
+      <ImageView fx:id="chatAvatarImageView" fitHeight="40" fitWidth="40" />
+      <VBox>
+        <Label fx:id="chatNameLabel" styleClass="chat-name-label" />
+        <Label fx:id="chatStatusLabel" styleClass="chat-status-label" />
+      </VBox>
+    </HBox>
+  </top>
   <center>
-    <ListView fx:id="messagesList" styleClass="messages-list"/>
+    <ListView fx:id="messagesList" styleClass="messages-list" />
   </center>
   <bottom>
-    <StackPane fx:id="bottomContainer" styleClass="bottom-container">
-      <children>
-        <!-- This HBox contains the message input field and send button -->
-        <HBox fx:id="messageInputContainer" alignment="CENTER_LEFT" spacing="10">
-          <padding>
-            <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
-          </padding>
-          <Button mnemonicParsing="false" onAction="#onAttach" text="Attach" styleClass="secondary-button"/>
-          <TextField fx:id="messageField" promptText="Write a message..." HBox.hgrow="ALWAYS"/>
-          <Button defaultButton="true" mnemonicParsing="false" onAction="#onSend" text="Send"/>
-        </HBox>
-
-        <!-- This button is for joining channels and is usually hidden -->
-        <Button fx:id="joinChannelButton" alignment="CENTER" contentDisplay="CENTER" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onJoinChannel" text="Join Channel" visible="false"/>
-      </children>
+    <StackPane fx:id="bottomContainer">
+      <HBox fx:id="messageInputContainer" alignment="CENTER" spacing="8">
+        <padding>
+          <Insets bottom="10" left="10" right="10" top="10" />
+        </padding>
+        <Button onAction="#onAttach" text="Attach" />
+        <TextField fx:id="messageField" onAction="#onSend" promptText="Write a message..." HBox.hgrow="ALWAYS" />
+        <Button onAction="#onSend" text="Send" />
+      </HBox>
+      <Button fx:id="joinChannelButton" managed="false" onAction="#onJoinChannel" text="Join Channel" visible="false" />
     </StackPane>
   </bottom>
 </BorderPane>
+

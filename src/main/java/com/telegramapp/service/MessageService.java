@@ -16,6 +16,8 @@ public class MessageService {
     }
 
     public void sendMessage(Message m) throws SQLException {
+        // New messages are "UNREAD" by default now
+        m.setReadStatus("UNREAD");
         dao.save(m);
     }
 
@@ -25,5 +27,9 @@ public class MessageService {
 
     public List<Message> loadNewSince(String receiverType, String receiverId, String currentUserId, LocalDateTime since) throws SQLException {
         return dao.findNewMessagesAfter(receiverType, receiverId, currentUserId, since);
+    }
+
+    public void markMessagesAsRead(String receiverType, String receiverId, String userId) throws SQLException {
+        dao.markMessagesAsRead(receiverType, receiverId, userId);
     }
 }

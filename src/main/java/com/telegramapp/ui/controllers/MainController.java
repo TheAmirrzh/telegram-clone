@@ -1,16 +1,12 @@
 package com.telegramapp.ui.controllers;
 
-import com.telegramapp.App;
 import com.telegramapp.dao.impl.ChannelDAOImpl;
 import com.telegramapp.dao.impl.GroupDAOImpl;
 import com.telegramapp.dao.impl.MessageDAOImpl;
 import com.telegramapp.dao.impl.UserDAOImpl;
-import com.telegramapp.model.Channel;
-import com.telegramapp.model.ChatListItem;
-import com.telegramapp.model.Group;
-import com.telegramapp.model.User;
-import com.telegramapp.model.Message;
+import com.telegramapp.model.*;
 import com.telegramapp.util.FX;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
@@ -33,40 +29,45 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class MainController {
+
     @FXML private ListView<ChatListItem> usersListView;
     @FXML private ListView<ChatListItem> groupsListView;
     @FXML private ListView<ChatListItem> channelsListView;
     @FXML private StackPane chatArea;
     @FXML private Label chatAreaPlaceholder;
+    @FXML private HBox profileContainer;
     @FXML private ImageView profileImageView;
     @FXML private Label profileNameLabel;
     @FXML private Label profileUsernameLabel;
-    @FXML private HBox profileContainer;
 
     private User currentUser;
+    private UserDAOImpl userDAO;
+    private GroupDAOImpl groupDAO;
+    private ChannelDAOImpl channelDAO;
+    private MessageDAOImpl messageDAO;
     private ChatController activeChatController;
-    private UserDAOImpl userDAO = new UserDAOImpl();
-    private GroupDAOImpl groupDAO = new GroupDAOImpl();
-    private ChannelDAOImpl channelDAO = new ChannelDAOImpl();
-    private MessageDAOImpl messageDAO = new MessageDAOImpl();
 
     @FXML
     public void initialize() {
-        if (profileImageView != null) {
-            Circle clip = new Circle(20, 20, 20);
-            profileImageView.setClip(clip);
-        }
+        this.userDAO = new UserDAOImpl();
+        this.groupDAO = new GroupDAOImpl();
+        this.channelDAO = new ChannelDAOImpl();
+        this.messageDAO = new MessageDAOImpl();
+        setupSelectionListeners();
+        profileContainer.setOnMouseClicked(event -> onEditProfile());
     }
 
     public void setCurrentUser(User u) {
         this.currentUser = u;
         refreshProfileView();
-        setupSelectionListeners();
         loadAllChatLists();
     }
 
@@ -78,20 +79,15 @@ public class MainController {
     }
 
     private void loadAvatar(User user, ImageView imageView) {
-        if (user == null || imageView == null) {
-            if (imageView != null) imageView.setImage(null);
+        if (imageView == null || user == null) {
             return;
         }
-        String picPath = user.getProfilePicPath();
         Image avatarImage = null;
-
+        String picPath = user.getProfilePicPath();
         if (picPath != null && !picPath.isBlank()) {
             try (FileInputStream fis = new FileInputStream(new File(picPath))) {
                 avatarImage = new Image(fis);
-            } catch (Exception e) {
-                System.err.println("Failed to load custom avatar: " + picPath);
-                avatarImage = null;
-            }
+            } catch (Exception e) { System.err.println("Failed to load user avatar: " + picPath); }
         }
 
         if (avatarImage == null) {
@@ -99,57 +95,67 @@ public class MainController {
                 if (defaultAvatarStream != null) {
                     avatarImage = new Image(defaultAvatarStream);
                 } else {
-                    System.err.println("FATAL: Could not find default avatar resource: /assets/default_avatar.png");
+                    System.err.println("CRITICAL: Default avatar not found in resources.");
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) { e.printStackTrace(); }
         }
         imageView.setImage(avatarImage);
+        imageView.setClip(new Circle(20, 20, 20));
     }
+
 
     private ListCell<ChatListItem> createChatListCell() {
         return new ListCell<>() {
-            private final ImageView imageView = new ImageView();
-            private final Label nameLabel = new Label();
-            private final Label lastMessageLabel = new Label();
-            private final VBox textVBox = new VBox(nameLabel, lastMessageLabel);
-            private final HBox contentHBox = new HBox(10, imageView, textVBox);
-
-            {
-                imageView.setFitHeight(40);
-                imageView.setFitWidth(40);
-                imageView.setClip(new Circle(20, 20, 20));
-                nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-                lastMessageLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #555;");
-                contentHBox.setAlignment(Pos.CENTER_LEFT);
-            }
-
             @Override
             protected void updateItem(ChatListItem item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
+                    setText(null);
                     setGraphic(null);
                 } else {
-                    nameLabel.setText(item.getDisplayName());
-                    lastMessageLabel.setText(item.getLastMessage());
-                    loadAvatar(item.getUser(), imageView);
-                    setGraphic(contentHBox);
+                    HBox content = new HBox(10);
+                    content.setAlignment(Pos.CENTER_LEFT);
+
+                    ImageView avatar = new ImageView();
+                    avatar.setFitHeight(40);
+                    avatar.setFitWidth(40);
+                    loadAvatar(item.getUser(), avatar);
+
+                    VBox textContainer = new VBox(2);
+                    Label nameLabel = new Label(item.getDisplayName());
+                    nameLabel.setStyle("-fx-font-weight: bold;");
+                    Label lastMessageLabel = new Label(item.getLastMessage());
+                    lastMessageLabel.setStyle("-fx-font-size: 0.9em; -fx-text-fill: #555;");
+                    textContainer.getChildren().addAll(nameLabel, lastMessageLabel);
+
+                    StackPane notificationPane = new StackPane();
+                    if (item.getUnreadCount() > 0) {
+                        Circle badge = new Circle(10);
+                        badge.getStyleClass().add("notification-badge");
+                        Label count = new Label(String.valueOf(item.getUnreadCount()));
+                        count.getStyleClass().add("notification-count");
+                        notificationPane.getChildren().addAll(badge, count);
+                    }
+
+                    HBox mainContent = new HBox(5);
+                    mainContent.getChildren().addAll(textContainer, notificationPane);
+                    content.getChildren().addAll(avatar, mainContent);
+                    setGraphic(content);
                 }
             }
         };
     }
 
     private void setupSelectionListeners() {
-        usersListView.setCellFactory(param -> createChatListCell());
-        groupsListView.setCellFactory(param -> createChatListCell());
-        channelsListView.setCellFactory(param -> createChatListCell());
+        usersListView.setCellFactory(lv -> createChatListCell());
+        groupsListView.setCellFactory(lv -> createChatListCell());
+        channelsListView.setCellFactory(lv -> createChatListCell());
 
         usersListView.getSelectionModel().selectedItemProperty().addListener((obs, old, item) -> {
             if (item != null) {
                 groupsListView.getSelectionModel().clearSelection();
                 channelsListView.getSelectionModel().clearSelection();
-                openPrivateChat((User) item.getChatObject());
+                openPrivateChat(item);
             }
         });
 
@@ -157,7 +163,7 @@ public class MainController {
             if (item != null) {
                 usersListView.getSelectionModel().clearSelection();
                 channelsListView.getSelectionModel().clearSelection();
-                openGroupChat((Group) item.getChatObject());
+                openGroupChat(item);
             }
         });
 
@@ -165,7 +171,7 @@ public class MainController {
             if (item != null) {
                 usersListView.getSelectionModel().clearSelection();
                 groupsListView.getSelectionModel().clearSelection();
-                openChannel((Channel) item.getChatObject());
+                openChannel(item);
             }
         });
     }
@@ -173,105 +179,111 @@ public class MainController {
     private void loadAllChatLists() {
         FX.runAsync(() -> {
             try {
-                return userDAO.findAllExcept(currentUser.getId()).stream()
+                List<User> users = userDAO.findAllExcept(currentUser.getId());
+                List<ChatListItem> userItems = users.stream()
                         .map(user -> {
                             try {
-                                String lastMsg = messageDAO.findLastMessageForChat("USER", user.getId(), currentUser.getId())
-                                        .map(Message::getContent).orElse("No messages yet");
-                                return new ChatListItem(user, lastMsg);
+                                Optional<Message> lastMessageOpt = messageDAO.findLastMessageForChat("USER", user.getId(), currentUser.getId());
+                                int unreadCount = messageDAO.getUnreadMessageCount("USER", user.getId(), currentUser.getId());
+                                String msgText = lastMessageOpt.map(Message::getContent).orElse("No messages yet");
+                                LocalDateTime ts = lastMessageOpt.map(Message::getTimestamp).orElse(LocalDateTime.MIN);
+                                return new ChatListItem(user, msgText, unreadCount, ts);
                             } catch (SQLException e) {
                                 throw new RuntimeException(e);
                             }
                         })
                         .collect(Collectors.toList());
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }, usersListView.getItems()::setAll, ex -> {
-            ex.printStackTrace();
-            FX.showError("Failed to load user list.");
-        });
 
-        FX.runAsync(() -> {
-            try {
-                return groupDAO.findByUser(currentUser.getId()).stream()
+                List<Group> groups = groupDAO.findByUser(currentUser.getId());
+                List<ChatListItem> groupItems = groups.stream()
                         .map(group -> {
                             try {
-                                String lastMsg = messageDAO.findLastMessageForChat("GROUP", group.getId(), currentUser.getId())
-                                        .map(Message::getContent).orElse("No messages yet");
-                                return new ChatListItem(group, lastMsg);
+                                Optional<Message> lastMessageOpt = messageDAO.findLastMessageForChat("GROUP", group.getId(), currentUser.getId());
+                                int unreadCount = messageDAO.getUnreadMessageCount("GROUP", group.getId(), currentUser.getId());
+                                String msgText = lastMessageOpt.map(Message::getContent).orElse("No messages yet");
+                                LocalDateTime ts = lastMessageOpt.map(Message::getTimestamp).orElse(LocalDateTime.MIN);
+                                return new ChatListItem(group, msgText, unreadCount, ts);
                             } catch (SQLException e) {
                                 throw new RuntimeException(e);
                             }
                         })
                         .collect(Collectors.toList());
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }, groupsListView.getItems()::setAll, ex -> {
-            ex.printStackTrace();
-            FX.showError("Failed to load group list.");
-        });
 
-        FX.runAsync(() -> {
-            try {
-                return channelDAO.findAll().stream()
+                List<Channel> channels = channelDAO.findAll();
+                List<ChatListItem> channelItems = channels.stream()
                         .map(channel -> {
                             try {
-                                String lastMsg = messageDAO.findLastMessageForChat("CHANNEL", channel.getId(), currentUser.getId())
-                                        .map(Message::getContent).orElse("No messages yet");
-                                return new ChatListItem(channel, lastMsg);
+                                Optional<Message> lastMessageOpt = messageDAO.findLastMessageForChat("CHANNEL", channel.getId(), currentUser.getId());
+                                int unreadCount = messageDAO.getUnreadMessageCount("CHANNEL", channel.getId(), currentUser.getId());
+                                String msgText = lastMessageOpt.map(Message::getContent).orElse("No messages yet");
+                                LocalDateTime ts = lastMessageOpt.map(Message::getTimestamp).orElse(LocalDateTime.MIN);
+                                return new ChatListItem(channel, msgText, unreadCount, ts);
                             } catch (SQLException e) {
                                 throw new RuntimeException(e);
                             }
                         })
                         .collect(Collectors.toList());
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
+
+                Comparator<ChatListItem> sorter = Comparator.comparing(ChatListItem::getLastMessageTimestamp).reversed();
+                userItems.sort(sorter);
+                groupItems.sort(sorter);
+                channelItems.sort(sorter);
+
+                return List.of(userItems, groupItems, channelItems);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                return Collections.emptyList();
             }
-        }, channelsListView.getItems()::setAll, ex -> {
-            ex.printStackTrace();
-            FX.showError("Failed to load channel list.");
-        });
+        }, (lists) -> {
+            if (lists.size() == 3) {
+                usersListView.getItems().setAll((List<ChatListItem>) lists.get(0));
+                groupsListView.getItems().setAll((List<ChatListItem>) lists.get(1));
+                channelsListView.getItems().setAll((List<ChatListItem>) lists.get(2));
+            }
+        }, null); // Added null for error handler
     }
 
-
-    private void openPrivateChat(User other) {
-        openChatView("USER", other.getId());
+    private void openPrivateChat(ChatListItem item) {
+        if (item.getChatObject() instanceof User) {
+            openChatView("USER", ((User) item.getChatObject()).getId());
+        }
     }
 
-    private void openGroupChat(Group g) {
-        openChatView("GROUP", g.getId());
+    private void openGroupChat(ChatListItem item) {
+        if (item.getChatObject() instanceof Group) {
+            openChatView("GROUP", ((Group) item.getChatObject()).getId());
+        }
     }
 
-    private void openChannel(Channel c) {
-        openChatView("CHANNEL", c.getId());
+    private void openChannel(ChatListItem item) {
+        if (item.getChatObject() instanceof Channel) {
+            openChatView("CHANNEL", ((Channel) item.getChatObject()).getId());
+        }
     }
 
-    private void openChatView(String receiverType, String receiverId) {
+    private void openChatView(String type, String id) {
         if (activeChatController != null) {
             activeChatController.onClose();
         }
         try {
-            FXMLLoader loader = new FXMLLoader(App.class.getResource("/fxml/chat.fxml"));
-            Node chatView = loader.load();
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
+            Node chatNode = loader.load();
             activeChatController = loader.getController();
-
-            // CRITICAL FIX: Pass data to the controller AFTER it's fully initialized.
-            activeChatController.loadChatData(currentUser, receiverType, receiverId);
-
-            chatArea.getChildren().setAll(chatView);
+            activeChatController.loadChatData(currentUser, type, id);
+            chatArea.getChildren().setAll(chatNode);
             chatAreaPlaceholder.setVisible(false);
-        } catch (IOException e) {
-            e.printStackTrace();
-            FX.showError("Failed to load chat interface. Check FXML file and controller.");
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            chatAreaPlaceholder.setText("Error loading chat.");
+            chatAreaPlaceholder.setVisible(true);
         }
     }
 
     @FXML
     private void onNewGroup() {
         try {
-            FXMLLoader loader = new FXMLLoader(App.class.getResource("/fxml/group_create.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/group_create.fxml"));
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.setTitle("Create Group");
@@ -282,14 +294,13 @@ public class MainController {
             loadAllChatLists();
         } catch (IOException | SQLException e) {
             e.printStackTrace();
-            FX.showError("Could not open the new group dialog.");
         }
     }
 
     @FXML
     private void onNewChannel() {
         try {
-            FXMLLoader loader = new FXMLLoader(App.class.getResource("/fxml/channel_create.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/channel_create.fxml"));
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.setTitle("Create Channel");
@@ -300,16 +311,16 @@ public class MainController {
             loadAllChatLists();
         } catch (IOException e) {
             e.printStackTrace();
-            FX.showError("Could not open the new channel dialog.");
         }
     }
 
     @FXML
     private void onEditProfile() {
         try {
-            FXMLLoader loader = new FXMLLoader(App.class.getResource("/fxml/profile.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/profile.fxml"));
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
+            dialog.initOwner(profileContainer.getScene().getWindow());
             dialog.setTitle("Edit Profile");
             dialog.setScene(new Scene(loader.load()));
             ProfileController ctrl = loader.getController();
@@ -318,7 +329,6 @@ public class MainController {
             refreshProfileView();
         } catch (IOException e) {
             e.printStackTrace();
-            FX.showError("Could not open profile settings.");
         }
     }
 }

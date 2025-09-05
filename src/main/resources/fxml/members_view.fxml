@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.MembersViewController" spacing="10" styleClass="dialog-pane">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <Label fx:id="titleLabel" styleClass="dialog-header" HBox.hgrow="ALWAYS"/>
+        <Button fx:id="addMemberButton" text="Add Member" onAction="#onAddMember"/>
+    </HBox>
+
+    <ListView fx:id="membersListView" VBox.vgrow="ALWAYS"/>
+
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button fx:id="promoteButton" text="Promote to Admin" onAction="#onPromote"/>
+        <Button fx:id="removeButton" text="Remove" onAction="#onRemove"/>
+        <Button text="Close" onAction="#onClose" styleClass="secondary-button"/>
+    </HBox>
+</VBox>
+

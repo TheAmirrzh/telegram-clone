@@ -18,10 +18,94 @@ public class MessageDAOImpl implements MessageDAO {
         this.ds = DBConnection.getInstance().getDataSource();
     }
 
-    // For tests
-    public MessageDAOImpl(DataSource dataSource) {
-        this.ds = dataSource;
+    // --- New Method Implementations ---
+
+    @Override
+    public Optional<Message> findLastMessageForChat(String receiverType, String receiverId, String currentUserId) throws SQLException {
+        String sql;
+        if ("USER".equalsIgnoreCase(receiverType)) {
+            sql = "SELECT * FROM messages WHERE receiver_type = 'USER' AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) ORDER BY timestamp DESC LIMIT 1";
+        } else {
+            sql = "SELECT * FROM messages WHERE receiver_type = ? AND receiver_id = ? ORDER BY timestamp DESC LIMIT 1";
+        }
+
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            if ("USER".equalsIgnoreCase(receiverType)) {
+                ps.setString(1, currentUserId);
+                ps.setString(2, receiverId);
+                ps.setString(3, receiverId);
+                ps.setString(4, currentUserId);
+            } else {
+                ps.setString(1, receiverType);
+                ps.setString(2, receiverId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(readMessageFromResultSet(rs));
+                }
+            }
+        }
+        return Optional.empty();
     }
+
+    @Override
+    public int getUnreadMessageCount(String receiverType, String receiverId, String currentUserId) throws SQLException {
+        String sql;
+        if ("USER".equalsIgnoreCase(receiverType)) {
+            // For a user, count messages sent by THEM to ME that are UNREAD
+            sql = "SELECT COUNT(*) FROM messages WHERE receiver_type = 'USER' AND sender_id = ? AND receiver_id = ? AND read_status = 'UNREAD'";
+        } else {
+            // For groups/channels, count all UNREAD messages not sent by ME
+            sql = "SELECT COUNT(*) FROM messages WHERE receiver_type = ? AND receiver_id = ? AND sender_id <> ? AND read_status = 'UNREAD'";
+        }
+
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            if ("USER".equalsIgnoreCase(receiverType)) {
+                ps.setString(1, receiverId); // from the other user
+                ps.setString(2, currentUserId); // to me
+            } else {
+                ps.setString(1, receiverType);
+                ps.setString(2, receiverId);
+                ps.setString(3, currentUserId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return 0;
+    }
+
+    @Override
+    public void markMessagesAsRead(String receiverType, String receiverId, String currentUserId) throws SQLException {
+        String sql;
+        if ("USER".equalsIgnoreCase(receiverType)) {
+            // Mark messages sent by THEM to ME as READ
+            sql = "UPDATE messages SET read_status = 'READ' WHERE receiver_type = 'USER' AND sender_id = ? AND receiver_id = ? AND read_status = 'UNREAD'";
+        } else {
+            // For groups/channels, mark all messages not sent by ME as READ
+            sql = "UPDATE messages SET read_status = 'READ' WHERE receiver_type = ? AND receiver_id = ? AND sender_id <> ? AND read_status = 'UNREAD'";
+        }
+
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            if ("USER".equalsIgnoreCase(receiverType)) {
+                ps.setString(1, receiverId);
+                ps.setString(2, currentUserId);
+            } else {
+                ps.setString(1, receiverType);
+                ps.setString(2, receiverId);
+                ps.setString(3, currentUserId);
+            }
+            ps.executeUpdate();
+        }
+    }
+
+
+    // --- Existing Methods ---
 
     @Override
     public void save(Message m) throws SQLException {
@@ -44,40 +128,11 @@ public class MessageDAOImpl implements MessageDAO {
 
     @Override
     public List<Message> findConversation(String receiverType, String receiverId, String currentUserId) throws SQLException {
-        if ("USER".equalsIgnoreCase(receiverType)) {
-            String sql = "SELECT id, sender_id, receiver_id, receiver_type, content, media_type, media_path, timestamp, read_status FROM messages " +
-                    "WHERE receiver_type = 'USER' AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) ORDER BY timestamp ASC, id ASC";
-            try (Connection conn = ds.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, currentUserId);
-                ps.setString(2, receiverId);
-                ps.setString(3, receiverId);
-                ps.setString(4, currentUserId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return readMessagesFromResultSet(rs);
-                }
-            }
-        } else {
-            String sql = "SELECT id, sender_id, receiver_id, receiver_type, content, media_type, media_path, timestamp, read_status FROM messages " +
-                    "WHERE receiver_type = ? AND receiver_id = ? ORDER BY timestamp ASC, id ASC";
-            try (Connection conn = ds.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, receiverType);
-                ps.setString(2, receiverId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    return readMessagesFromResultSet(rs);
-                }
-            }
-        }
-    }
-
-    @Override
-    public List<Message> findNewMessagesAfter(String receiverType, String receiverId, String currentUserId, LocalDateTime after) throws SQLException {
         String sql;
         if ("USER".equalsIgnoreCase(receiverType)) {
-            sql = "SELECT * FROM messages WHERE receiver_type = 'USER' AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) AND timestamp > ? ORDER BY timestamp ASC";
+            sql = "SELECT * FROM messages WHERE receiver_type = 'USER' AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) ORDER BY timestamp ASC, id ASC";
         } else {
-            sql = "SELECT * FROM messages WHERE receiver_type = ? AND receiver_id = ? AND timestamp > ? ORDER BY timestamp ASC";
+            sql = "SELECT * FROM messages WHERE receiver_type = ? AND receiver_id = ? ORDER BY timestamp ASC, id ASC";
         }
 
         try (Connection conn = ds.getConnection();
@@ -87,11 +142,9 @@ public class MessageDAOImpl implements MessageDAO {
                 ps.setString(2, receiverId);
                 ps.setString(3, receiverId);
                 ps.setString(4, currentUserId);
-                ps.setTimestamp(5, Timestamp.valueOf(after));
             } else {
                 ps.setString(1, receiverType);
                 ps.setString(2, receiverId);
-                ps.setTimestamp(3, Timestamp.valueOf(after));
             }
             try (ResultSet rs = ps.executeQuery()) {
                 return readMessagesFromResultSet(rs);
@@ -100,34 +153,42 @@ public class MessageDAOImpl implements MessageDAO {
     }
 
     @Override
-    public Optional<Message> findLastMessageForChat(String receiverType, String receiverId, String currentUserId) throws SQLException {
+    public List<Message> findNewMessagesAfter(String receiverType, String receiverId, String currentUserId, LocalDateTime after) throws SQLException {
         String sql;
         if ("USER".equalsIgnoreCase(receiverType)) {
-            sql = "SELECT * FROM messages WHERE receiver_type = 'USER' AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) ORDER BY timestamp DESC LIMIT 1";
+            sql = "SELECT * FROM messages WHERE receiver_type = 'USER' AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) AND timestamp > ? ORDER BY timestamp ASC, id ASC";
         } else {
-            sql = "SELECT * FROM messages WHERE receiver_type = ? AND receiver_id = ? ORDER BY timestamp DESC LIMIT 1";
+            sql = "SELECT * FROM messages WHERE receiver_type = ? AND receiver_id = ? AND timestamp > ? ORDER BY timestamp ASC, id ASC";
         }
 
-        try (Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            int paramIndex = 1;
             if ("USER".equalsIgnoreCase(receiverType)) {
-                ps.setString(1, currentUserId);
-                ps.setString(2, receiverId);
-                ps.setString(3, receiverId);
-                ps.setString(4, currentUserId);
+                ps.setString(paramIndex++, currentUserId);
+                ps.setString(paramIndex++, receiverId);
+                ps.setString(paramIndex++, receiverId);
+                ps.setString(paramIndex++, currentUserId);
             } else {
-                ps.setString(1, receiverType);
-                ps.setString(2, receiverId);
+                ps.setString(paramIndex++, receiverType);
+                ps.setString(paramIndex++, receiverId);
             }
+            ps.setTimestamp(paramIndex, Timestamp.valueOf(after));
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return Optional.of(mapRowToMessage(rs));
-                }
+                return readMessagesFromResultSet(rs);
             }
         }
-        return Optional.empty();
     }
 
-    private Message mapRowToMessage(ResultSet rs) throws SQLException {
+    private List<Message> readMessagesFromResultSet(ResultSet rs) throws SQLException {
+        List<Message> list = new ArrayList<>();
+        while (rs.next()) {
+            list.add(readMessageFromResultSet(rs));
+        }
+        return list;
+    }
+
+    private Message readMessageFromResultSet(ResultSet rs) throws SQLException {
         Timestamp ts = rs.getTimestamp("timestamp");
         LocalDateTime dt = ts == null ? LocalDateTime.now() : ts.toLocalDateTime();
         return new Message(
@@ -141,14 +202,6 @@ public class MessageDAOImpl implements MessageDAO {
                 dt,
                 rs.getString("read_status")
         );
-    }
-
-    private List<Message> readMessagesFromResultSet(ResultSet rs) throws SQLException {
-        List<Message> list = new ArrayList<>();
-        while (rs.next()) {
-            list.add(mapRowToMessage(rs));
-        }
-        return list;
     }
 
     @Override

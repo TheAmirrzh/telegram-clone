@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS groups (
 CREATE TABLE IF NOT EXISTS group_members (
   group_id VARCHAR(36) REFERENCES groups(id),
   user_id VARCHAR(36) REFERENCES users(id),
+  -- ADDED: Role management for groups
+  role VARCHAR(20) NOT NULL DEFAULT 'MEMBER', -- Can be 'MEMBER' or 'ADMIN'
   PRIMARY KEY (group_id, user_id)
 );
 

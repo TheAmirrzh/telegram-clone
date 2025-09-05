@@ -1,15 +1,19 @@
 package com.telegramapp.model;
 
+import java.time.LocalDateTime;
+
+// This class is a wrapper to hold all the necessary UI information for a single chat list entry.
 public class ChatListItem {
     private final Object chatObject;
-    private final String lastMessage;
+    private String lastMessage;
+    private int unreadCount;
+    private LocalDateTime lastMessageTimestamp;
 
-    public ChatListItem(Object chatObject, String lastMessage) {
-        if (!(chatObject instanceof User || chatObject instanceof Group || chatObject instanceof Channel)) {
-            throw new IllegalArgumentException("ChatListItem must wrap a User, Group, or Channel");
-        }
+    public ChatListItem(Object chatObject, String lastMessage, int unreadCount, LocalDateTime lastMessageTimestamp) {
         this.chatObject = chatObject;
         this.lastMessage = lastMessage;
+        this.unreadCount = unreadCount;
+        this.lastMessageTimestamp = lastMessageTimestamp;
     }
 
     public Object getChatObject() {
@@ -18,6 +22,14 @@ public class ChatListItem {
 
     public String getLastMessage() {
         return lastMessage;
+    }
+
+    public int getUnreadCount() {
+        return unreadCount;
+    }
+
+    public LocalDateTime getLastMessageTimestamp() {
+        return lastMessageTimestamp;
     }
 
     public String getDisplayName() {
@@ -33,10 +45,9 @@ public class ChatListItem {
 
     public User getUser() {
         if (chatObject instanceof User) {
-            return (User) chatObject;
+            return ((User) chatObject);
         }
-        // For groups/channels, we might not have a single user to represent the avatar.
-        // Returning null is acceptable, and the UI will use a default.
+        // For groups/channels, we don't have a single representative user avatar in this model
         return null;
     }
 }
