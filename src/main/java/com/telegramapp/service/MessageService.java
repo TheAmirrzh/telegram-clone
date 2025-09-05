@@ -7,6 +7,7 @@ import com.telegramapp.model.Message;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public class MessageService {
     private final MessageDAO dao;
@@ -39,4 +40,9 @@ public class MessageService {
     public void markMessagesAsRead(String receiverType, String receiverId, String userId) throws SQLException {
         dao.markMessagesAsRead(receiverType, receiverId, userId);
     }
+
+    public Optional<Message> getMessageById(String messageId) throws SQLException {
+        return dao.findById(messageId);
+    }
 }
+

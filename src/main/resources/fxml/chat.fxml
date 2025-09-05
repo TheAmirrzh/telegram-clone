@@ -8,39 +8,52 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.Region?>
 
 <BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.ChatController">
   <top>
-    <HBox fx:id="chatHeader" alignment="CENTER_LEFT" spacing="10" styleClass="chat-header">
-      <padding>
-        <Insets bottom="8" left="12" right="12" top="8" />
-      </padding>
-      <ImageView fx:id="chatAvatarImageView" fitHeight="40" fitWidth="40" />
-      <VBox HBox.hgrow="ALWAYS">
-        <Label fx:id="chatNameLabel" styleClass="chat-name-label" />
-        <Label fx:id="chatStatusLabel" styleClass="chat-status-label" />
-      </VBox>
-      <Region HBox.hgrow="ALWAYS" />
-      <Button fx:id="manageMembersButton" onAction="#onHeaderClick" text="Manage" visible="false"/>
-    </HBox>
+    <VBox>
+      <HBox fx:id="chatHeader" alignment="CENTER_LEFT" spacing="10" styleClass="chat-header">
+        <padding>
+          <Insets bottom="8" left="12" right="12" top="8" />
+        </padding>
+        <ImageView fx:id="chatAvatarImageView" fitHeight="40" fitWidth="40" />
+        <VBox>
+          <Label fx:id="chatNameLabel" styleClass="chat-name-label" />
+          <Label fx:id="chatStatusLabel" styleClass="chat-status-label" />
+        </VBox>
+        <Region HBox.hgrow="ALWAYS" />
+        <Button fx:id="manageMembersButton" text="Manage" onAction="#onManageMembers" />
+      </HBox>
+    </VBox>
   </top>
   <center>
     <ListView fx:id="messagesList" styleClass="messages-list" />
   </center>
   <bottom>
-    <StackPane fx:id="bottomContainer" styleClass="bottom-container">
-      <HBox fx:id="messageInputContainer" alignment="CENTER" spacing="8">
-        <padding>
-          <Insets bottom="10" left="10" right="10" top="10" />
-        </padding>
-        <Button onAction="#onAttach" text="Attach" />
-        <TextField fx:id="messageField" onAction="#onSend" promptText="Write a message..." HBox.hgrow="ALWAYS" />
-        <Button onAction="#onSend" text="Send" />
+    <VBox>
+      <HBox fx:id="replyPreviewBox" alignment="CENTER_LEFT" managed="false" spacing="10" styleClass="reply-preview-box" visible="false">
+        <padding><Insets top="5" right="10" bottom="5" left="10" /></padding>
+        <VBox HBox.hgrow="ALWAYS">
+          <Label fx:id="replyPreviewHeader" styleClass="reply-header-label" />
+          <Label fx:id="replyPreviewContent" styleClass="reply-content-label" />
+        </VBox>
+        <Button onAction="#onCancelReply" styleClass="cancel-reply-button" text="X" />
       </HBox>
-      <Button fx:id="joinChannelButton" managed="false" onAction="#onJoinChannel" text="Join Channel" visible="false" />
-    </StackPane>
+      <StackPane fx:id="bottomContainer">
+        <HBox fx:id="messageInputContainer" alignment="CENTER" spacing="8" styleClass="message-input-container">
+          <padding>
+            <Insets bottom="10" left="10" right="10" top="10" />
+          </padding>
+          <Button onAction="#onAttach" styleClass="attach-button" text="+" />
+          <TextField fx:id="messageField" onAction="#onSend" promptText="Write a message..." HBox.hgrow="ALWAYS" />
+          <Button onAction="#onSend" styleClass="send-button" text="Send" />
+        </HBox>
+        <Button fx:id="joinChannelButton" managed="false" onAction="#onJoinChannel" text="Join Channel" visible="false" />
+      </StackPane>
+    </VBox>
   </bottom>
 </BorderPane>
+

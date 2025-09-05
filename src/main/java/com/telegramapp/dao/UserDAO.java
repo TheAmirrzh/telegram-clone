@@ -13,6 +13,8 @@ public interface UserDAO {
     List<User> findAll() throws SQLException;
     List<User> findAllExcept(String id) throws SQLException;
     void delete(String id) throws SQLException;
-    List<User> findByIds(List<String> userIds) throws SQLException; // New Method
-}
+    List<User> findByIds(List<String> userIds) throws SQLException;
 
+    // --- New Method for User Status ---
+    void updateUserStatus(String userId, String status) throws SQLException;
+}

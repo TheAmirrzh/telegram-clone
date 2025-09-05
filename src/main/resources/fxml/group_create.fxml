@@ -10,32 +10,33 @@
 
 <VBox spacing="10" styleClass="dialog-pane" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.GroupCreateController">
     <padding>
-        <Insets bottom="12" left="12" right="12" top="12" />
+        <Insets bottom="20" left="20" right="20" top="20" />
     </padding>
 
-    <Label styleClass="heading" text="Create New Group" />
+    <Label styleClass="dialog-header" text="Create New Group" />
     <TextField fx:id="groupNameField" promptText="Group Name" />
 
     <HBox spacing="10" VBox.vgrow="ALWAYS">
         <VBox spacing="5" HBox.hgrow="ALWAYS">
-            <Label text="Available Users" />
+            <Label text="Available Users" styleClass="form-label"/>
             <ListView fx:id="availableUsersList" prefHeight="200.0" />
         </VBox>
 
         <VBox alignment="CENTER" spacing="10">
-            <Button onAction="#onAddSelected" text="&gt;" />
-            <Button onAction="#onRemoveSelected" text="&lt;" />
+            <Button onAction="#onAddSelected" text="&gt;" styleClass="button"/>
+            <Button onAction="#onRemoveSelected" text="&lt;" styleClass="button"/>
         </VBox>
 
         <VBox spacing="5" HBox.hgrow="ALWAYS">
-            <Label text="Selected Users" />
+            <Label text="Selected Users" styleClass="form-label"/>
             <ListView fx:id="selectedUsersList" prefHeight="200.0" />
         </VBox>
     </HBox>
 
-    <HBox alignment="CENTER_RIGHT" spacing="8">
+    <HBox alignment="CENTER_RIGHT" spacing="10">
         <Label fx:id="messageLabel" styleClass="error-label" HBox.hgrow="ALWAYS" />
-        <Button onAction="#onCancel" text="Cancel" />
-        <Button onAction="#onCreate" styleClass="primary" text="Create" />
+        <Button onAction="#onCancel" text="Cancel" styleClass="secondary-button"/>
+        <Button onAction="#onCreate" text="Create" styleClass="button"/>
     </HBox>
 </VBox>
+

@@ -19,6 +19,16 @@ public class UserDAOImpl implements UserDAO {
         this.ds = DBConnection.getInstance().getDataSource();
     }
 
+    public void updateUserStatus(String userId, String status) throws SQLException {
+        String sql = "UPDATE users SET status = ? WHERE id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status);
+            ps.setString(2, userId);
+            ps.executeUpdate();
+        }
+    }
+
     // New Method for fetching multiple users by their IDs
     @Override
     public List<User> findByIds(List<String> userIds) throws SQLException {
@@ -151,4 +161,3 @@ public class UserDAOImpl implements UserDAO {
         return u;
     }
 }
-

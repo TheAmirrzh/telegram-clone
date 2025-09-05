@@ -18,6 +18,46 @@ public class MessageDAOImpl implements MessageDAO {
         this.ds = DBConnection.getInstance().getDataSource();
     }
 
+    private Message readMessageFromResultSet(ResultSet rs) throws SQLException {
+        Timestamp ts = rs.getTimestamp("timestamp");
+        LocalDateTime dt = ts == null ? LocalDateTime.now() : ts.toLocalDateTime();
+        return new Message(
+                rs.getString("id"),
+                rs.getString("sender_id"),
+                rs.getString("receiver_id"),
+                rs.getString("receiver_type"),
+                rs.getString("content"),
+                rs.getString("media_type"),
+                rs.getString("media_path"),
+                dt,
+                rs.getString("read_status"),
+                rs.getString("reply_to_message_id")
+        );
+    }
+
+    private List<Message> readMessagesFromResultSet(ResultSet rs) throws SQLException {
+        List<Message> list = new ArrayList<>();
+        while (rs.next()) {
+            list.add(readMessageFromResultSet(rs));
+        }
+        return list;
+    }
+
+    @Override
+    public Optional<Message> findById(String messageId) throws SQLException {
+        String sql = "SELECT * FROM messages WHERE id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, messageId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(readMessageFromResultSet(rs));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     @Override
     public Optional<Message> findLastMessageForChat(String receiverType, String receiverId, String currentUserId) throws SQLException {
         String sql;
@@ -81,6 +121,8 @@ public class MessageDAOImpl implements MessageDAO {
         if ("USER".equalsIgnoreCase(receiverType)) {
             sql = "UPDATE messages SET read_status = 'READ' WHERE receiver_type = 'USER' AND sender_id = ? AND receiver_id = ? AND read_status = 'UNREAD'";
         } else {
+            // In groups/channels, you haven't "read" your own messages until others see them, so this logic is simplified
+            // A more complex implementation would track read receipts per user.
             sql = "UPDATE messages SET read_status = 'READ' WHERE receiver_type = ? AND receiver_id = ? AND sender_id <> ? AND read_status = 'UNREAD'";
         }
 
@@ -100,7 +142,7 @@ public class MessageDAOImpl implements MessageDAO {
 
     @Override
     public void save(Message m) throws SQLException {
-        String sql = "INSERT INTO messages (id, sender_id, receiver_id, receiver_type, content, media_type, media_path, timestamp, read_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO messages (id, sender_id, receiver_id, receiver_type, content, media_type, media_path, timestamp, read_status, reply_to_message_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, m.getId());
@@ -110,9 +152,9 @@ public class MessageDAOImpl implements MessageDAO {
             ps.setString(5, m.getContent());
             ps.setString(6, m.getMediaType());
             ps.setString(7, m.getMediaPath());
-            LocalDateTime ts = m.getTimestamp() == null ? LocalDateTime.now() : m.getTimestamp();
-            ps.setTimestamp(8, Timestamp.valueOf(ts));
+            ps.setTimestamp(8, Timestamp.valueOf(m.getTimestamp() == null ? LocalDateTime.now() : m.getTimestamp()));
             ps.setString(9, m.getReadStatus());
+            ps.setString(10, m.getReplyToMessageId());
             ps.executeUpdate();
         }
     }
@@ -125,7 +167,7 @@ public class MessageDAOImpl implements MessageDAO {
             ps.setString(1, message.getContent());
             ps.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
             ps.setString(3, message.getId());
-            ps.setString(4, message.getSenderId());
+            ps.setString(4, message.getSenderId()); // Ensure users can only edit their own messages
             ps.executeUpdate();
         }
     }
@@ -184,30 +226,6 @@ public class MessageDAOImpl implements MessageDAO {
         }
     }
 
-    private List<Message> readMessagesFromResultSet(ResultSet rs) throws SQLException {
-        List<Message> list = new ArrayList<>();
-        while (rs.next()) {
-            list.add(readMessageFromResultSet(rs));
-        }
-        return list;
-    }
-
-    private Message readMessageFromResultSet(ResultSet rs) throws SQLException {
-        Timestamp ts = rs.getTimestamp("timestamp");
-        LocalDateTime dt = ts == null ? LocalDateTime.now() : ts.toLocalDateTime();
-        return new Message(
-                rs.getString("id"),
-                rs.getString("sender_id"),
-                rs.getString("receiver_id"),
-                rs.getString("receiver_type"),
-                rs.getString("content"),
-                rs.getString("media_type"),
-                rs.getString("media_path"),
-                dt,
-                rs.getString("read_status")
-        );
-    }
-
     @Override
     public void delete(String messageId, String senderId) throws SQLException {
         String sql = "UPDATE messages SET content = '[This message was deleted]', media_path = NULL, media_type = NULL, read_status = 'DELETED' WHERE id = ? AND sender_id = ?";
@@ -219,3 +237,4 @@ public class MessageDAOImpl implements MessageDAO {
         }
     }
 }
+

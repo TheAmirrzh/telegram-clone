@@ -4,16 +4,16 @@
 <?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
 
-<VBox spacing="10" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.ui.controllers.ChannelCreateController">
-    <padding><Insets top="12" right="12" bottom="12" left="12"/></padding>
+<VBox spacing="15" styleClass="dialog-pane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.ui.controllers.ChannelCreateController">
+    <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
 
-    <Label text="Create Channel" style="-fx-font-size:14px; -fx-font-weight:bold;"/>
+    <Label text="Create Channel" styleClass="dialog-header"/>
     <TextField fx:id="channelNameField" promptText="Channel name" prefWidth="420"/>
 
-    <HBox spacing="8">
-        <Button text="Create" onAction="#onCreate"/>
-        <Button text="Cancel" onAction="#onCancel"/>
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Label fx:id="messageLabel" styleClass="error-label" HBox.hgrow="ALWAYS"/>
+        <Button text="Cancel" onAction="#onCancel" styleClass="secondary-button"/>
+        <Button text="Create" onAction="#onCreate" styleClass="button"/>
     </HBox>
-
-    <Label fx:id="messageLabel" style="-fx-text-fill:#b22222;"/>
 </VBox>
+

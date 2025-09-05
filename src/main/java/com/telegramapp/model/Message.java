@@ -14,19 +14,23 @@ public class Message {
     private String mediaPath;
     private LocalDateTime timestamp;
     private String readStatus;
+    private String replyToMessageId; // Added for reply feature
 
+    // Constructor for new text messages
     public Message(String senderId, String receiverId, String receiverType, String content) {
         this.id = UUID.randomUUID().toString();
         this.senderId = senderId;
         this.receiverId = receiverId;
         this.receiverType = receiverType;
         this.content = content;
-        this.mediaType = null;
+        this.mediaType = "TEXT";
         this.mediaPath = null;
         this.timestamp = LocalDateTime.now();
         this.readStatus = "UNREAD";
+        this.replyToMessageId = null;
     }
 
+    // Constructor for new media messages
     public Message(String senderId, String receiverId, String receiverType, String content, String mediaType, String mediaPath) {
         this.id = UUID.randomUUID().toString();
         this.senderId = senderId;
@@ -37,9 +41,11 @@ public class Message {
         this.mediaPath = mediaPath;
         this.timestamp = LocalDateTime.now();
         this.readStatus = "UNREAD";
+        this.replyToMessageId = null;
     }
 
-    public Message(String id, String senderId, String receiverId, String receiverType, String content, String mediaType, String mediaPath, LocalDateTime timestamp, String readStatus) {
+    // Full constructor for reading from database
+    public Message(String id, String senderId, String receiverId, String receiverType, String content, String mediaType, String mediaPath, LocalDateTime timestamp, String readStatus, String replyToMessageId) {
         this.id = id;
         this.senderId = senderId;
         this.receiverId = receiverId;
@@ -49,8 +55,10 @@ public class Message {
         this.mediaPath = mediaPath;
         this.timestamp = timestamp == null ? LocalDateTime.now() : timestamp;
         this.readStatus = readStatus;
+        this.replyToMessageId = replyToMessageId;
     }
 
+    // --- Getters ---
     public String getId() { return id; }
     public String getSenderId() { return senderId; }
     public String getReceiverId() { return receiverId; }
@@ -60,11 +68,13 @@ public class Message {
     public String getMediaPath() { return mediaPath; }
     public LocalDateTime getTimestamp() { return timestamp; }
     public String getReadStatus() { return readStatus; }
+    public String getReplyToMessageId() { return replyToMessageId; }
 
+    // --- Setters ---
     public void setReadStatus(String s){ this.readStatus = s; }
-    public void setContent(String content) {
-        this.content = content;
-    }
+    public void setContent(String content) { this.content = content; }
+    public void setReplyToMessageId(String replyToMessageId) { this.replyToMessageId = replyToMessageId; }
+
 
     @Override
     public boolean equals(Object o) {
@@ -78,3 +88,4 @@ public class Message {
         return Objects.hash(id);
     }
 }
+

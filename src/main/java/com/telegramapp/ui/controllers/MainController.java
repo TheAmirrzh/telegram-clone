@@ -1,5 +1,6 @@
 package com.telegramapp.ui.controllers;
 
+import com.telegramapp.App;
 import com.telegramapp.dao.impl.ChannelDAOImpl;
 import com.telegramapp.dao.impl.GroupDAOImpl;
 import com.telegramapp.dao.impl.MessageDAOImpl;
@@ -19,10 +20,11 @@ import javafx.scene.control.ListView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -38,6 +40,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class MainController {
@@ -63,6 +68,7 @@ public class MainController {
     private MessageDAOImpl messageDAO;
     private ChatController activeChatController;
     private boolean isDarkMode = false;
+    private ScheduledExecutorService listRefreshScheduler;
 
 
     @FXML
@@ -73,22 +79,35 @@ public class MainController {
         this.messageDAO = new MessageDAOImpl();
         setupSelectionListeners();
         profileContainer.setOnMouseClicked(event -> onEditProfile());
-
-        // Setup theme toggle - This is the correct way to handle the click
         themeToggleContainer.setOnMouseClicked(event -> toggleTheme());
         sunIcon.setOpacity(0);
         moonIcon.setOpacity(1);
+
+        listRefreshScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            return t;
+        });
+        listRefreshScheduler.scheduleAtFixedRate(this::loadAllChatLists, 0, 5, TimeUnit.SECONDS);
     }
 
     public void setCurrentUser(User u) {
         this.currentUser = u;
-        refreshProfileView();
-        loadAllChatLists();
+        App.setCurrentUserId(u.getId());
+        FX.runAsync(() -> {
+            try {
+                userDAO.updateUserStatus(currentUser.getId(), "Online");
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }, () -> {
+            refreshProfileView();
+            loadAllChatLists();
+        }, Throwable::printStackTrace);
     }
 
     private void toggleTheme() {
         isDarkMode = !isDarkMode;
-
         FadeTransition sunFade = new FadeTransition(Duration.millis(300), sunIcon);
         FadeTransition moonFade = new FadeTransition(Duration.millis(300), moonIcon);
 
@@ -160,13 +179,19 @@ public class MainController {
             private final Label lastMessageLabel;
             private final Label unreadCountLabel;
             private final StackPane notificationPane;
+            private final Circle statusCircle;
 
-            // Initializer block to create the cell structure once
             {
                 avatar = new ImageView();
                 avatar.setFitHeight(40);
                 avatar.setFitWidth(40);
                 avatar.setClip(new Circle(20, 20, 20));
+
+                statusCircle = new Circle(6);
+                statusCircle.setStroke(Color.WHITE);
+                statusCircle.setStrokeWidth(1.5);
+                StackPane avatarPane = new StackPane(avatar, statusCircle);
+                avatarPane.setAlignment(Pos.BOTTOM_RIGHT);
 
                 nameLabel = new Label();
                 nameLabel.getStyleClass().add("chat-list-name-label");
@@ -188,7 +213,7 @@ public class MainController {
                 HBox mainContent = new HBox(5, textContainer, spacer, notificationPane);
                 mainContent.setAlignment(Pos.CENTER_LEFT);
 
-                content = new HBox(10, avatar, mainContent);
+                content = new HBox(10, avatarPane, mainContent);
                 content.setAlignment(Pos.CENTER_LEFT);
             }
 
@@ -206,6 +231,14 @@ public class MainController {
                         notificationPane.setVisible(true);
                     } else {
                         notificationPane.setVisible(false);
+                    }
+
+                    if (item.getChatObject() instanceof User) {
+                        statusCircle.setVisible(true);
+                        String status = ((User) item.getChatObject()).getStatus();
+                        statusCircle.setFill("Online".equals(status) ? Color.LIMEGREEN : Color.GRAY);
+                    } else {
+                        statusCircle.setVisible(false);
                     }
 
                     loadChatAvatar(item.getChatObject(), avatar);
@@ -246,6 +279,10 @@ public class MainController {
     }
 
     public void loadAllChatLists() {
+        if (currentUser == null) {
+            return; // FIX: Do not proceed if the user is not logged in yet.
+        }
+
         FX.runAsync(() -> {
             try {
                 List<User> users = userDAO.findAllExcept(currentUser.getId());
@@ -302,15 +339,17 @@ public class MainController {
 
             } catch (Exception e) {
                 e.printStackTrace();
-                return Collections.emptyList();
+                return Collections.<List<ChatListItem>>emptyList();
             }
         }, (lists) -> {
             if (lists.size() == 3) {
-                usersListView.getItems().setAll((List<ChatListItem>) lists.get(0));
-                groupsListView.getItems().setAll((List<ChatListItem>) lists.get(1));
-                channelsListView.getItems().setAll((List<ChatListItem>) lists.get(2));
+                Platform.runLater(() -> {
+                    usersListView.getItems().setAll(lists.get(0));
+                    groupsListView.getItems().setAll(lists.get(1));
+                    channelsListView.getItems().setAll(lists.get(2));
+                });
             }
-        }, null);
+        }, Throwable::printStackTrace);
     }
 
     private void openPrivateChat(ChatListItem item) {
@@ -339,7 +378,6 @@ public class MainController {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
             Node chatNode = loader.load();
             activeChatController = loader.getController();
-            // Pass the MainController instance to the ChatController
             activeChatController.setMainController(this);
             activeChatController.loadChatData(currentUser, type, id);
             chatArea.getChildren().setAll(chatNode);
@@ -400,6 +438,15 @@ public class MainController {
             refreshProfileView();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    public void shutdown() {
+        if (listRefreshScheduler != null) {
+            listRefreshScheduler.shutdownNow();
+        }
+        if (activeChatController != null) {
+            activeChatController.onClose();
         }
     }
 }
