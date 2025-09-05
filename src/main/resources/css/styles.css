@@ -1,14 +1,11 @@
 /* styles.css */
 
-/* --- Global --- */
+/* --- COMMON STYLES (Theme-independent) --- */
 .root {
     -fx-font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    -fx-font-size: 14px;
-    -fx-background-color: #f1f5f8;
 }
 
-/* --- Buttons --- */
-.button {
+.button, .toggle-button {
     -fx-background-color: #3498db;
     -fx-text-fill: white;
     -fx-font-weight: bold;
@@ -17,180 +14,82 @@
     -fx-cursor: hand;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0.0, 0, 2);
 }
-.button:hover {
-    -fx-background-color: #2980b9;
-}
-.button:pressed {
-    -fx-scale-x: 0.98;
-    -fx-scale-y: 0.98;
-}
+.button:hover, .toggle-button:hover { -fx-background-color: #2980b9; }
+.button:pressed, .toggle-button:pressed { -fx-scale-x: 0.98; -fx-scale-y: 0.98; }
 
-.danger-button {
-    -fx-background-color: #e74c3c;
-}
-.danger-button:hover {
-    -fx-background-color: #c0392b;
-}
-
-/* --- Main Layout --- */
-.top-bar {
-    -fx-background-color: white;
-    -fx-padding: 10 20;
-    -fx-border-color: #e0e0e0;
-    -fx-border-width: 0 0 1 0;
-}
-
-.sidebar {
-    -fx-background-color: white;
-    -fx-padding: 10;
-    -fx-border-color: #e0e0e0;
-    -fx-border-width: 0 1 0 0;
-}
-
-.chat-area-background {
-    -fx-background-image: url('../assets/telegram-bg.png');
-    -fx-background-size: cover;
-    -fx-background-position: center center;
-    -fx-alignment: center;
-}
-
-/* --- Chat Header --- */
-.chat-header {
-    -fx-background-color: #ffffff;
-    -fx-border-color: #e0e0e0;
-    -fx-border-width: 0 0 1px 0;
+.theme-toggle-container {
+    -fx-background-color: #f0f4f8;
+    -fx-padding: 8;
+    -fx-background-radius: 20;
     -fx-cursor: hand;
 }
+.theme-icon { -fx-opacity: 1; }
 
-.chat-header:hover {
-    -fx-background-color: #f8f9fa;
-}
 
-.chat-header-title {
-    -fx-font-weight: bold;
-    -fx-font-size: 15px;
-}
-
-.chat-header-status {
-    -fx-font-size: 12px;
-    -fx-text-fill: #6c757d;
-}
-
-/* --- Members View --- */
-.admin-badge {
-    -fx-font-size: 10px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #3498db;
-    -fx-padding: 2px 4px;
-    -fx-border-color: #3498db;
-    -fx-border-radius: 4px;
-    -fx-background-radius: 4px;
-}
-/* --- List Views --- */
-.list-view {
-    -fx-background-color: transparent;
-}
+.list-header { -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 10 5; }
+.list-view { -fx-background-color: transparent; }
 .list-view .list-cell {
     -fx-background-color: transparent;
     -fx-padding: 8px;
-    -fx-border-color: transparent;
-}
-.list-view .list-cell:filled:selected, .list-view .list-cell:filled:selected:hover {
-    -fx-background-color: #3498db;
-    -fx-background-radius: 8;
-}
-.list-view .list-cell:filled:selected .label {
-    -fx-text-fill: white;
-}
-.list-view .list-cell:hover {
-    -fx-background-color: #f5f5f5;
-    -fx-background-radius: 8;
-}
-
-/* --- Notification Badge --- */
-.notification-badge {
-    -fx-fill: #3498db;
-}
-.notification-count {
-    -fx-fill: white;
-    -fx-font-size: 11px;
-    -fx-font-weight: bold;
-}
-
-.list-cell:filled:selected .notification-badge {
-    -fx-fill: white;
-}
-
-.list-cell:filled:selected .notification-count {
-    -fx-fill: #3498db;
-}
-
-
-/* --- Chat Area --- */
-.messages-list {
-    -fx-padding: 10;
-    -fx-background-color: transparent;
-}
-.message-bubble {
-    -fx-padding: 8 12;
-    -fx-background-radius: 15;
-    -fx-max-width: 450;
-}
-.message-bubble.mine {
-    -fx-background-color: #dcf8c6;
-}
-.message-bubble.other {
-    -fx-background-color: white;
-}
-.message-text {
-    -fx-fill: black;
-}
-.deleted-message-text {
-    -fx-fill: #888;
-    -fx-font-style: italic;
-}
-.message-meta {
-    -fx-font-size: 10px;
-    -fx-text-fill: #888;
-}
-
-.bottom-container {
-    -fx-background-color: #f5f5f5;
-    -fx-border-color: #e0e0e0;
-    -fx-border-width: 1 0 0 0;
-}
-
-/* --- Split Pane --- */
-.split-pane:horizontal > .split-pane-divider {
-   -fx-background-color: #e0e0e0;
-   -fx-padding: 0 1 0 0;
-}
-
-/* --- TextFields --- */
-.text-field {
-    -fx-background-radius: 20;
-    -fx-border-radius: 20;
-    -fx-border-color: #ccc;
-    -fx-padding: 6 12;
-}
-
-/* --- Dialogs --- */
-.dialog-pane {
-    -fx-background-color: #f8f9fa;
-    -fx-border-color: #dee2e6;
+    -fx-border-color: transparent transparent #e8e8e8 transparent;
     -fx-border-width: 1px;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 3);
+    -fx-background-radius: 0; /* Remove radius for clean lines */
+}
+.list-view .list-cell:last-child {
+    -fx-border-width: 0;
 }
 
-.form-label {
-    -fx-font-size: 12px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #495057;
-}
 
-.error-label {
-    -fx-text-fill: #e74c3c;
-    -fx-font-weight: bold;
-}
+.messages-list { -fx-padding: 10; -fx-background-color: transparent; }
+.message-bubble { -fx-padding: 8 12; -fx-background-radius: 15; -fx-max-width: 450; }
+
+.text-field { -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 6 12; }
+
+.profile-bubble { -fx-cursor: hand; -fx-padding: 5px; -fx-background-radius: 25px; }
+.chat-area-background { -fx-background-image: url('../assets/telegram-bg.png'); -fx-background-size: cover; -fx-background-position: center center; -fx-alignment: center; }
+
+.notification-badge { -fx-background-color: #3498db; -fx-background-radius: 10px; -fx-padding: 2px 6px; }
+.notification-count-label { -fx-font-size: 11px; -fx-text-fill: white; -fx-font-weight: bold; }
+
+/* --- Light Theme --- */
+.main-container { -fx-background-color: #F0F4F8; }
+.top-toolbar { -fx-background-color: #FFFFFF; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0; }
+.sidebar { -fx-background-color: #FFFFFF; -fx-border-color: #E0E0E0; -fx-border-width: 0 1 0 0; }
+.chat-header { -fx-background-color: #FFFFFF; -fx-border-color: #E0E0E0; }
+.chat-header:hover { -fx-background-color: #F1F5F8; }
+.bottom-container { -fx-background-color: #F5F5F5; -fx-border-color: #E0E0E0; }
+.list-view .list-cell:hover { -fx-background-color: #F1F5F8; }
+.list-view .list-cell:filled:selected { -fx-background-color: #3498db; }
+.message-bubble.mine { -fx-background-color: #dcf8c6; }
+.message-bubble.other { -fx-background-color: #ffffff; }
+.text-field { -fx-background-color: #FFFFFF; -fx-border-color: #E0E0E0; -fx-text-fill: #212121; -fx-prompt-text-fill: #B0B0B0; }
+.split-pane > .split-pane-divider { -fx-background-color: #E0E0E0; }
+
+.chat-list-name-label, .chat-name-label { -fx-font-weight: bold; -fx-text-fill: #212121; }
+.chat-list-message-label, .chat-status-label, .username-label { -fx-font-size: 0.9em; -fx-text-fill: #6c757d; }
+.list-header { -fx-text-fill: #3498db; }
+.list-view .list-cell:filled:selected .chat-list-name-label, .list-view .list-cell:filled:selected .chat-list-message-label { -fx-text-fill: #FFFFFF; }
+.message-text { -fx-fill: #212121; }
+.message-meta { -fx-fill: #6c757d; }
+.profile-bubble:hover { -fx-background-color: #F1F5F8; }
+
+
+/* --- Dark Theme Overrides --- */
+.theme-dark .main-container { -fx-background-color: #18222d; }
+.theme-dark .top-toolbar, .theme-dark .sidebar, .theme-dark .chat-header { -fx-background-color: #212d3b; -fx-border-color: #2b3a4c; }
+.theme-dark .chat-header:hover, .theme-dark .list-view .list-cell:hover, .theme-dark .profile-bubble:hover { -fx-background-color: #2b3a4c; }
+.theme-dark .bottom-container { -fx-background-color: #18222d; -fx-border-color: #2b3a4c; }
+.theme-dark .message-bubble.mine { -fx-background-color: #2b5278; }
+.theme-dark .message-bubble.other { -fx-background-color: #26323f; }
+.theme-dark .text-field { -fx-background-color: #212d3b; -fx-border-color: #2b3a4c; -fx-text-fill: #FFFFFF; -fx-prompt-text-fill: #506070; }
+.theme-dark .split-pane > .split-pane-divider { -fx-background-color: #2b3a4c; }
+.theme-dark .chat-list-name-label, .theme-dark .chat-name-label { -fx-text-fill: #FFFFFF; }
+.theme-dark .chat-list-message-label, .theme-dark .chat-status-label, .theme-dark .username-label { -fx-text-fill: #A0B0C0; }
+.theme-dark .message-text, .theme-dark .list-view .list-cell:filled:selected .notification-badge .notification-count-label { -fx-fill: #FFFFFF; }
+.theme-dark .message-meta { -fx-fill: #A0B0C0; }
+.theme-dark .theme-toggle-container { -fx-background-color: #2b3a4c; }
+.theme-dark .list-view .list-cell { -fx-border-color: transparent transparent #2b3a4c transparent; }
+.theme-dark .list-view .list-cell:filled:selected .notification-badge { -fx-background-color: #FFFFFF; }
+.theme-dark .list-view .list-cell:filled:selected .notification-count-label { -fx-text-fill: #3498db; }
+.theme-dark .chat-area-background { -fx-background-image: url('../assets/telegram-bg-dark.png'); }
+

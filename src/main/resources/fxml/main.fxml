@@ -2,17 +2,24 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
 <?import javafx.scene.layout.*?>
 
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.MainController"
-      styleClass="main-container">
+      styleClass="main-container" fx:id="mainContainer">
 
   <!-- Top Toolbar -->
   <HBox alignment="CENTER_LEFT" styleClass="top-toolbar">
     <padding>
       <Insets top="8" right="12" bottom="8" left="12"/>
     </padding>
-    <Label text="Telegram" styleClass="header-title"/>
+
+    <ImageView fitHeight="40" fitWidth="40">
+      <image>
+        <Image url="@../assets/telegram_logo.png" />
+      </image>
+    </ImageView>
+
     <Region HBox.hgrow="ALWAYS"/>
 
     <!-- Profile Bubble -->
@@ -24,8 +31,18 @@
       <ImageView fx:id="profileImageView" fitHeight="40" fitWidth="40"/>
     </HBox>
 
-    <Button text="New Group" onAction="#onNewGroup"/>
-    <Button text="New Channel" onAction="#onNewChannel"/>
+    <Button text="New Group" onAction="#onNewGroup" styleClass="button"/>
+    <Button text="New Channel" onAction="#onNewChannel" styleClass="button"/>
+
+    <!-- This StackPane now correctly omits the onAction attribute -->
+    <StackPane fx:id="themeToggleContainer" styleClass="theme-toggle-container">
+      <ImageView fx:id="sunIcon" styleClass="theme-icon" fitWidth="20" fitHeight="20">
+        <image><Image url="@../assets/sun_icon.png"/></image>
+      </ImageView>
+      <ImageView fx:id="moonIcon" styleClass="theme-icon" fitWidth="20" fitHeight="20">
+        <image><Image url="@../assets/moon_icon.png"/></image>
+      </ImageView>
+    </StackPane>
   </HBox>
 
   <!-- Main Content Area -->
@@ -67,3 +84,4 @@
   </SplitPane>
 
 </VBox>
+

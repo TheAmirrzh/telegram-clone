@@ -6,6 +6,7 @@ import com.telegramapp.dao.impl.MessageDAOImpl;
 import com.telegramapp.dao.impl.UserDAOImpl;
 import com.telegramapp.model.*;
 import com.telegramapp.util.FX;
+import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -18,11 +19,14 @@ import javafx.scene.control.ListView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,6 +42,7 @@ import java.util.stream.Collectors;
 
 public class MainController {
 
+    @FXML private VBox mainContainer;
     @FXML private ListView<ChatListItem> usersListView;
     @FXML private ListView<ChatListItem> groupsListView;
     @FXML private ListView<ChatListItem> channelsListView;
@@ -47,6 +52,9 @@ public class MainController {
     @FXML private ImageView profileImageView;
     @FXML private Label profileNameLabel;
     @FXML private Label profileUsernameLabel;
+    @FXML private StackPane themeToggleContainer;
+    @FXML private ImageView sunIcon;
+    @FXML private ImageView moonIcon;
 
     private User currentUser;
     private UserDAOImpl userDAO;
@@ -54,6 +62,8 @@ public class MainController {
     private ChannelDAOImpl channelDAO;
     private MessageDAOImpl messageDAO;
     private ChatController activeChatController;
+    private boolean isDarkMode = false;
+
 
     @FXML
     public void initialize() {
@@ -63,6 +73,11 @@ public class MainController {
         this.messageDAO = new MessageDAOImpl();
         setupSelectionListeners();
         profileContainer.setOnMouseClicked(event -> onEditProfile());
+
+        // Setup theme toggle - This is the correct way to handle the click
+        themeToggleContainer.setOnMouseClicked(event -> toggleTheme());
+        sunIcon.setOpacity(0);
+        moonIcon.setOpacity(1);
     }
 
     public void setCurrentUser(User u) {
@@ -71,75 +86,129 @@ public class MainController {
         loadAllChatLists();
     }
 
+    private void toggleTheme() {
+        isDarkMode = !isDarkMode;
+
+        FadeTransition sunFade = new FadeTransition(Duration.millis(300), sunIcon);
+        FadeTransition moonFade = new FadeTransition(Duration.millis(300), moonIcon);
+
+        if (isDarkMode) {
+            mainContainer.getStyleClass().add("theme-dark");
+            sunFade.setToValue(1);
+            moonFade.setToValue(0);
+        } else {
+            mainContainer.getStyleClass().remove("theme-dark");
+            sunFade.setToValue(0);
+            moonFade.setToValue(1);
+        }
+        sunFade.play();
+        moonFade.play();
+    }
+
     private void refreshProfileView() {
         if (currentUser == null) return;
         profileNameLabel.setText(currentUser.getDisplayName());
         profileUsernameLabel.setText("@" + currentUser.getUsername());
-        loadAvatar(currentUser, profileImageView);
+        loadChatAvatar(currentUser, profileImageView);
     }
 
-    private void loadAvatar(User user, ImageView imageView) {
-        if (imageView == null || user == null) {
-            return;
-        }
+    private void loadChatAvatar(Object chatObject, ImageView imageView) {
+        if (imageView == null) return;
+
         Image avatarImage = null;
-        String picPath = user.getProfilePicPath();
+        String picPath = null;
+        String defaultAvatarResource = "/assets/default_avatar.png";
+
+        if (chatObject instanceof User) {
+            picPath = ((User) chatObject).getProfilePicPath();
+        } else if (chatObject instanceof Group) {
+            defaultAvatarResource = "/assets/default_group_avatar.png";
+        } else if (chatObject instanceof Channel) {
+            defaultAvatarResource = "/assets/default_channel_avatar.png";
+        }
+
         if (picPath != null && !picPath.isBlank()) {
             try (FileInputStream fis = new FileInputStream(new File(picPath))) {
                 avatarImage = new Image(fis);
-            } catch (Exception e) { System.err.println("Failed to load user avatar: " + picPath); }
+            } catch (Exception e) {
+                System.err.println("Failed to load user avatar: " + picPath);
+            }
         }
 
         if (avatarImage == null) {
-            try (InputStream defaultAvatarStream = getClass().getResourceAsStream("/assets/default_avatar.png")) {
+            try (InputStream defaultAvatarStream = getClass().getResourceAsStream(defaultAvatarResource)) {
                 if (defaultAvatarStream != null) {
                     avatarImage = new Image(defaultAvatarStream);
                 } else {
-                    System.err.println("CRITICAL: Default avatar not found in resources.");
+                    System.err.println("CRITICAL: Default avatar not found: " + defaultAvatarResource);
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         imageView.setImage(avatarImage);
-        imageView.setClip(new Circle(20, 20, 20));
+        if (imageView.getClip() == null) {
+            imageView.setClip(new Circle(20, 20, 20));
+        }
     }
-
 
     private ListCell<ChatListItem> createChatListCell() {
         return new ListCell<>() {
+            private final HBox content;
+            private final ImageView avatar;
+            private final Label nameLabel;
+            private final Label lastMessageLabel;
+            private final Label unreadCountLabel;
+            private final StackPane notificationPane;
+
+            // Initializer block to create the cell structure once
+            {
+                avatar = new ImageView();
+                avatar.setFitHeight(40);
+                avatar.setFitWidth(40);
+                avatar.setClip(new Circle(20, 20, 20));
+
+                nameLabel = new Label();
+                nameLabel.getStyleClass().add("chat-list-name-label");
+
+                lastMessageLabel = new Label();
+                lastMessageLabel.getStyleClass().add("chat-list-message-label");
+
+                VBox textContainer = new VBox(2, nameLabel, lastMessageLabel);
+
+                unreadCountLabel = new Label();
+                unreadCountLabel.getStyleClass().add("notification-count-label");
+                StackPane badge = new StackPane(unreadCountLabel);
+                badge.getStyleClass().add("notification-badge");
+                notificationPane = new StackPane(badge);
+
+                Region spacer = new Region();
+                HBox.setHgrow(spacer, Priority.ALWAYS);
+
+                HBox mainContent = new HBox(5, textContainer, spacer, notificationPane);
+                mainContent.setAlignment(Pos.CENTER_LEFT);
+
+                content = new HBox(10, avatar, mainContent);
+                content.setAlignment(Pos.CENTER_LEFT);
+            }
+
             @Override
             protected void updateItem(ChatListItem item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
-                    setText(null);
                     setGraphic(null);
                 } else {
-                    HBox content = new HBox(10);
-                    content.setAlignment(Pos.CENTER_LEFT);
+                    nameLabel.setText(item.getDisplayName());
+                    lastMessageLabel.setText(item.getLastMessage());
 
-                    ImageView avatar = new ImageView();
-                    avatar.setFitHeight(40);
-                    avatar.setFitWidth(40);
-                    loadAvatar(item.getUser(), avatar);
-
-                    VBox textContainer = new VBox(2);
-                    Label nameLabel = new Label(item.getDisplayName());
-                    nameLabel.setStyle("-fx-font-weight: bold;");
-                    Label lastMessageLabel = new Label(item.getLastMessage());
-                    lastMessageLabel.setStyle("-fx-font-size: 0.9em; -fx-text-fill: #555;");
-                    textContainer.getChildren().addAll(nameLabel, lastMessageLabel);
-
-                    StackPane notificationPane = new StackPane();
                     if (item.getUnreadCount() > 0) {
-                        Circle badge = new Circle(10);
-                        badge.getStyleClass().add("notification-badge");
-                        Label count = new Label(String.valueOf(item.getUnreadCount()));
-                        count.getStyleClass().add("notification-count");
-                        notificationPane.getChildren().addAll(badge, count);
+                        unreadCountLabel.setText(String.valueOf(item.getUnreadCount()));
+                        notificationPane.setVisible(true);
+                    } else {
+                        notificationPane.setVisible(false);
                     }
 
-                    HBox mainContent = new HBox(5);
-                    mainContent.getChildren().addAll(textContainer, notificationPane);
-                    content.getChildren().addAll(avatar, mainContent);
+                    loadChatAvatar(item.getChatObject(), avatar);
                     setGraphic(content);
                 }
             }
@@ -241,7 +310,7 @@ public class MainController {
                 groupsListView.getItems().setAll((List<ChatListItem>) lists.get(1));
                 channelsListView.getItems().setAll((List<ChatListItem>) lists.get(2));
             }
-        }, null); // Added null for error handler
+        }, null);
     }
 
     private void openPrivateChat(ChatListItem item) {
@@ -324,7 +393,7 @@ public class MainController {
             dialog.setTitle("Edit Profile");
             dialog.setScene(new Scene(loader.load()));
             ProfileController ctrl = loader.getController();
-            ctrl.initData(currentUser, currentUser); // Pass current user for both, indicating it's editable
+            ctrl.initData(currentUser, currentUser);
             dialog.showAndWait();
             refreshProfileView();
         } catch (IOException e) {
@@ -332,3 +401,4 @@ public class MainController {
         }
     }
 }
+

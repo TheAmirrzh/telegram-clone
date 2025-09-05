@@ -5,7 +5,9 @@ import com.telegramapp.dao.impl.UserDAOImpl;
 import com.telegramapp.model.Message;
 import com.telegramapp.model.User;
 import org.junit.jupiter.api.*;
-
+import com.telegramapp.db.DBConnection;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
@@ -34,12 +36,18 @@ public class MessageDAOTest {
         userDAO.save(receiver);
     }
 
-    @AfterAll
-    public void teardown() throws SQLException {
-        // Clean up created test data in reverse order of creation to respect foreign keys.
+    @AfterEach
+    void teardown() throws SQLException {
+        // Actually delete messages from database (not just mark as deleted)
         if (message != null) {
-            messageDAO.delete(message.getId());
+            try (Connection conn = DBConnection.getInstance().getConnection();
+                 PreparedStatement ps = conn.prepareStatement("DELETE FROM messages WHERE id = ?")) {
+                ps.setString(1, message.getId());
+                ps.executeUpdate();
+            }
         }
+
+        // Now we can safely delete users
         if (sender != null) {
             userDAO.delete(sender.getId());
         }

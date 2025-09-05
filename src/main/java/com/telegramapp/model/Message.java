@@ -62,6 +62,9 @@ public class Message {
     public String getReadStatus() { return readStatus; }
 
     public void setReadStatus(String s){ this.readStatus = s; }
+    public void setContent(String content) {
+        this.content = content;
+    }
 
     @Override
     public boolean equals(Object o) {
