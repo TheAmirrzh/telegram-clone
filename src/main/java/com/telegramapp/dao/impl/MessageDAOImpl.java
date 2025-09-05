@@ -18,8 +18,6 @@ public class MessageDAOImpl implements MessageDAO {
         this.ds = DBConnection.getInstance().getDataSource();
     }
 
-    // --- New Method Implementations ---
-
     @Override
     public Optional<Message> findLastMessageForChat(String receiverType, String receiverId, String currentUserId) throws SQLException {
         String sql;
@@ -53,18 +51,16 @@ public class MessageDAOImpl implements MessageDAO {
     public int getUnreadMessageCount(String receiverType, String receiverId, String currentUserId) throws SQLException {
         String sql;
         if ("USER".equalsIgnoreCase(receiverType)) {
-            // For a user, count messages sent by THEM to ME that are UNREAD
             sql = "SELECT COUNT(*) FROM messages WHERE receiver_type = 'USER' AND sender_id = ? AND receiver_id = ? AND read_status = 'UNREAD'";
         } else {
-            // For groups/channels, count all UNREAD messages not sent by ME
             sql = "SELECT COUNT(*) FROM messages WHERE receiver_type = ? AND receiver_id = ? AND sender_id <> ? AND read_status = 'UNREAD'";
         }
 
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             if ("USER".equalsIgnoreCase(receiverType)) {
-                ps.setString(1, receiverId); // from the other user
-                ps.setString(2, currentUserId); // to me
+                ps.setString(1, receiverId);
+                ps.setString(2, currentUserId);
             } else {
                 ps.setString(1, receiverType);
                 ps.setString(2, receiverId);
@@ -83,10 +79,8 @@ public class MessageDAOImpl implements MessageDAO {
     public void markMessagesAsRead(String receiverType, String receiverId, String currentUserId) throws SQLException {
         String sql;
         if ("USER".equalsIgnoreCase(receiverType)) {
-            // Mark messages sent by THEM to ME as READ
             sql = "UPDATE messages SET read_status = 'READ' WHERE receiver_type = 'USER' AND sender_id = ? AND receiver_id = ? AND read_status = 'UNREAD'";
         } else {
-            // For groups/channels, mark all messages not sent by ME as READ
             sql = "UPDATE messages SET read_status = 'READ' WHERE receiver_type = ? AND receiver_id = ? AND sender_id <> ? AND read_status = 'UNREAD'";
         }
 
@@ -104,9 +98,6 @@ public class MessageDAOImpl implements MessageDAO {
         }
     }
 
-
-    // --- Existing Methods ---
-
     @Override
     public void save(Message m) throws SQLException {
         String sql = "INSERT INTO messages (id, sender_id, receiver_id, receiver_type, content, media_type, media_path, timestamp, read_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -122,6 +113,19 @@ public class MessageDAOImpl implements MessageDAO {
             LocalDateTime ts = m.getTimestamp() == null ? LocalDateTime.now() : m.getTimestamp();
             ps.setTimestamp(8, Timestamp.valueOf(ts));
             ps.setString(9, m.getReadStatus());
+            ps.executeUpdate();
+        }
+    }
+
+    @Override
+    public void update(Message message) throws SQLException {
+        String sql = "UPDATE messages SET content = ?, read_status = 'EDITED', timestamp = ? WHERE id = ? AND sender_id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, message.getContent());
+            ps.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setString(3, message.getId());
+            ps.setString(4, message.getSenderId());
             ps.executeUpdate();
         }
     }
@@ -205,13 +209,13 @@ public class MessageDAOImpl implements MessageDAO {
     }
 
     @Override
-    public void delete(String id) throws SQLException {
-        String sql = "DELETE FROM messages WHERE id = ?";
+    public void delete(String messageId, String senderId) throws SQLException {
+        String sql = "UPDATE messages SET content = '[This message was deleted]', media_path = NULL, media_type = NULL, read_status = 'DELETED' WHERE id = ? AND sender_id = ?";
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, id);
+            ps.setString(1, messageId);
+            ps.setString(2, senderId);
             ps.executeUpdate();
         }
     }
 }
-

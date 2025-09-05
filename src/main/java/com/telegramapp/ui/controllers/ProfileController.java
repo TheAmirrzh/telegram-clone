@@ -36,11 +36,16 @@ public class ProfileController {
     @FXML private TextField displayNameField;
     @FXML private TextArea bioField;
     @FXML private Label messageLabel;
+    @FXML private Button chooseImageButton;
+    @FXML private Button saveButton;
+    @FXML private Button logoutButton;
 
-    private User currentUser;
+
+    private User displayedUser;
     private UserDAOImpl userDAO = new UserDAOImpl();
     private File selectedImageFile;
     private Stage stage;
+    private boolean isEditable;
 
     @FXML
     public void initialize() {
@@ -48,11 +53,25 @@ public class ProfileController {
         profileImageView.setClip(clip);
     }
 
-    public void initData(User user) {
-        this.currentUser = user;
-        displayNameField.setText(user.getDisplayName());
-        bioField.setText(user.getBio());
-        loadAvatar(user, profileImageView);
+    /**
+     * Initializes the profile view.
+     * @param displayedUser The user whose profile is being shown.
+     * @param currentUser The currently logged-in user. Editing is only allowed if they are the same.
+     */
+    public void initData(User displayedUser, User currentUser) {
+        this.displayedUser = displayedUser;
+        this.isEditable = displayedUser.getId().equals(currentUser.getId());
+
+        displayNameField.setText(displayedUser.getDisplayName());
+        bioField.setText(displayedUser.getBio());
+        loadAvatar(displayedUser, profileImageView);
+
+        // UI elements are controlled based on whether the profile is editable
+        displayNameField.setEditable(isEditable);
+        bioField.setEditable(isEditable);
+        chooseImageButton.setVisible(isEditable);
+        saveButton.setVisible(isEditable);
+        logoutButton.setVisible(isEditable); // Logout is only possible from one's own profile
     }
 
     @FXML
@@ -77,6 +96,11 @@ public class ProfileController {
 
     @FXML
     private void onSave() {
+        if (!isEditable) {
+            messageLabel.setText("You can only edit your own profile.");
+            return;
+        }
+
         String newDisplayName = displayNameField.getText().trim();
         String newBio = bioField.getText().trim();
 
@@ -88,8 +112,8 @@ public class ProfileController {
         FX.runAsync(() -> {
                     try {
                         // Update text fields
-                        currentUser.setDisplayName(newDisplayName);
-                        currentUser.setBio(newBio);
+                        displayedUser.setDisplayName(newDisplayName);
+                        displayedUser.setBio(newBio);
 
                         // Handle image update
                         if (selectedImageFile != null) {
@@ -105,10 +129,10 @@ public class ProfileController {
                             String newFileName = UUID.randomUUID().toString() + extension;
                             Path destPath = storageDir.resolve(newFileName);
                             Files.copy(selectedImageFile.toPath(), destPath, StandardCopyOption.REPLACE_EXISTING);
-                            currentUser.setProfilePicPath(destPath.toString());
+                            displayedUser.setProfilePicPath(destPath.toString());
                         }
 
-                        userDAO.update(currentUser);
+                        userDAO.update(displayedUser);
                         return "Profile updated successfully!";
                     } catch (SQLException | IOException e) {
                         e.printStackTrace();
@@ -132,6 +156,8 @@ public class ProfileController {
 
     @FXML
     private void onLogout() {
+        if(!isEditable) return;
+
         closeDialog();
 
         // Find the main stage and close it
@@ -184,4 +210,3 @@ public class ProfileController {
         imageView.setImage(avatarImage);
     }
 }
-

@@ -16,9 +16,16 @@ public class MessageService {
     }
 
     public void sendMessage(Message m) throws SQLException {
-        // New messages are "UNREAD" by default now
         m.setReadStatus("UNREAD");
         dao.save(m);
+    }
+
+    public void editMessage(Message message) throws SQLException {
+        dao.update(message);
+    }
+
+    public void deleteMessage(String messageId, String senderId) throws SQLException {
+        dao.delete(messageId, senderId);
     }
 
     public List<Message> loadConversation(String receiverType, String receiverId, String currentUserId) throws SQLException {

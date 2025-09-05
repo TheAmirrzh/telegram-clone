@@ -15,17 +15,15 @@ import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.SVGPath;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -36,9 +34,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -134,7 +134,7 @@ public class ChatController {
                 dialog.setTitle("User Profile");
                 dialog.setScene(new Scene(loader.load()));
                 ProfileController ctrl = loader.getController();
-                ctrl.initData((User) chatEntity);
+                ctrl.initData((User) chatEntity, currentUser); // Pass both users to check for edit permissions
                 dialog.showAndWait();
             } else if (chatEntity instanceof Group || chatEntity instanceof Channel) {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/members_view.fxml"));
@@ -208,17 +208,75 @@ public class ChatController {
     }
 
     private void setupMessageListCellFactory() {
-        messagesList.setCellFactory(lv -> new ListCell<>() {
-            @Override
-            protected void updateItem(Message m, boolean empty) {
-                super.updateItem(m, empty);
-                if (empty || m == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    setGraphic(createMessageBubble(m));
+        messagesList.setCellFactory(lv -> {
+            ListCell<Message> cell = new ListCell<>() {
+                @Override
+                protected void updateItem(Message m, boolean empty) {
+                    super.updateItem(m, empty);
+                    if (empty || m == null) {
+                        setText(null);
+                        setGraphic(null);
+                    } else {
+                        setGraphic(createMessageBubble(m));
+                    }
                 }
-            }
+            };
+
+            // Create ContextMenu for edit/delete
+            ContextMenu contextMenu = new ContextMenu();
+            MenuItem editItem = new MenuItem("Edit");
+            MenuItem deleteItem = new MenuItem("Delete");
+
+            editItem.setOnAction(event -> {
+                Message messageToEdit = cell.getItem();
+                if (messageToEdit == null) return;
+
+                TextInputDialog dialog = new TextInputDialog(messageToEdit.getContent());
+                dialog.setTitle("Edit Message");
+                dialog.setHeaderText(null);
+                dialog.setContentText("Enter new message text:");
+
+                Optional<String> result = dialog.showAndWait();
+                result.ifPresent(newContent -> {
+                    if (!newContent.trim().isEmpty() && !newContent.equals(messageToEdit.getContent())) {
+                        messageToEdit.setContent(newContent);
+                        FX.runAsync(() -> {
+                            try {
+                                messageService.editMessage(messageToEdit);
+                            } catch (SQLException e) { throw new RuntimeException(e); }
+                            return null;
+                        }, success -> loadInitialMessages(), error -> FX.showError("Failed to edit message."));
+                    }
+                });
+            });
+
+            deleteItem.setOnAction(event -> {
+                Message messageToDelete = cell.getItem();
+                if (messageToDelete == null) return;
+                FX.runAsync(() -> {
+                    try {
+                        messageService.deleteMessage(messageToDelete.getId(), currentUser.getId());
+                    } catch (SQLException e) { throw new RuntimeException(e); }
+                    return null;
+                }, success -> loadInitialMessages(), error -> FX.showError("Failed to delete message."));
+            });
+
+            contextMenu.getItems().addAll(editItem, deleteItem);
+            cell.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
+                if (isNowEmpty) {
+                    cell.setContextMenu(null);
+                } else {
+                    if (cell.getItem() != null &&
+                            cell.getItem().getSenderId().equals(currentUser.getId()) &&
+                            !"DELETED".equals(cell.getItem().getReadStatus())) {
+                        cell.setContextMenu(contextMenu);
+                    } else {
+                        cell.setContextMenu(null);
+                    }
+                }
+            });
+
+            return cell;
         });
     }
 
@@ -287,15 +345,27 @@ public class ChatController {
         bubble.getStyleClass().add(mine ? "mine" : "other");
 
         Text content = new Text(m.getContent() == null ? "" : m.getContent());
-        content.getStyleClass().add("message-text");
+        if ("DELETED".equals(m.getReadStatus())) {
+            content.getStyleClass().add("deleted-message-text");
+        } else {
+            content.getStyleClass().add("message-text");
+        }
         content.wrappingWidthProperty().bind(messagesList.widthProperty().subtract(180));
 
         User sender = resolveUser(m.getSenderId());
         String senderName = mine ? "You" : (sender != null ? sender.getDisplayName() : "Unknown");
-        Label meta = new Label(senderName + " • " + m.getTimestamp().toString());
+        Label meta = new Label(senderName + " • " + m.getTimestamp().format(DateTimeFormatter.ofPattern("HH:mm")));
         meta.getStyleClass().add("message-meta");
 
-        bubble.getChildren().addAll(content, meta);
+        HBox metaContainer = new HBox(5);
+        metaContainer.setAlignment(Pos.CENTER_RIGHT);
+        metaContainer.getChildren().add(meta);
+
+        if (mine && !"DELETED".equals(m.getReadStatus())) {
+            metaContainer.getChildren().add(createTickStatus(m));
+        }
+
+        bubble.getChildren().addAll(content, metaContainer);
         loadAvatar(sender, avatar);
 
         if (!mine) {
@@ -305,6 +375,39 @@ public class ChatController {
 
         return row;
     }
+
+    private HBox createTickStatus(Message m) {
+        HBox tickContainer = new HBox();
+        tickContainer.setAlignment(Pos.CENTER_LEFT);
+        tickContainer.setSpacing(-7); // Overlap ticks
+
+        SVGPath singleTick = new SVGPath();
+        singleTick.setContent("M4 12.5l2.5 2.5 6-6");
+        singleTick.setStrokeWidth(1.5);
+        singleTick.setFill(Color.TRANSPARENT);
+
+        if ("READ".equals(m.getReadStatus())) {
+            singleTick.setStroke(Color.DODGERBLUE);
+            SVGPath doubleTick = new SVGPath();
+            doubleTick.setContent("M8 12.5l2.5 2.5 6-6");
+            doubleTick.setStroke(Color.DODGERBLUE);
+            doubleTick.setStrokeWidth(1.5);
+            doubleTick.setFill(Color.TRANSPARENT);
+            tickContainer.getChildren().addAll(singleTick, doubleTick);
+        } else {
+            singleTick.setStroke(Color.GRAY);
+            tickContainer.getChildren().add(singleTick);
+        }
+
+        if ("EDITED".equals(m.getReadStatus())) {
+            Label editedLabel = new Label("(edited)");
+            editedLabel.getStyleClass().add("message-meta");
+            tickContainer.getChildren().add(editedLabel);
+        }
+
+        return tickContainer;
+    }
+
 
     private User resolveUser(String userId) {
         return userCache.computeIfAbsent(userId, id -> {
@@ -381,4 +484,3 @@ public class ChatController {
         if (scheduler != null) scheduler.shutdownNow();
     }
 }
-

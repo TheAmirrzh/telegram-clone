@@ -48,10 +48,13 @@
 }
 
 .chat-area-background {
-    -fx-background-color: #e5ddd5;
+    -fx-background-image: url('../assets/telegram-bg.png');
+    -fx-background-size: cover;
+    -fx-background-position: center center;
     -fx-alignment: center;
 }
-/* --- Additions for Chat Header --- */
+
+/* --- Chat Header --- */
 .chat-header {
     -fx-background-color: #ffffff;
     -fx-border-color: #e0e0e0;
@@ -73,7 +76,7 @@
     -fx-text-fill: #6c757d;
 }
 
-/* --- Additions for Members View --- */
+/* --- Members View --- */
 .admin-badge {
     -fx-font-size: 10px;
     -fx-font-weight: bold;
@@ -106,25 +109,27 @@
 
 /* --- Notification Badge --- */
 .notification-badge {
-    -fx-background-color: #3498db;
-    -fx-text-fill: white;
+    -fx-fill: #3498db;
+}
+.notification-count {
+    -fx-fill: white;
     -fx-font-size: 11px;
     -fx-font-weight: bold;
-    -fx-background-radius: 10;
-    -fx-padding: 2px 6px;
-    -fx-min-width: 20px;
-    -fx-alignment: center;
 }
 
 .list-cell:filled:selected .notification-badge {
-    -fx-background-color: white;
-    -fx-text-fill: #3498db;
+    -fx-fill: white;
 }
+
+.list-cell:filled:selected .notification-count {
+    -fx-fill: #3498db;
+}
+
 
 /* --- Chat Area --- */
 .messages-list {
     -fx-padding: 10;
-    -fx-background-color: #e5ddd5;
+    -fx-background-color: transparent;
 }
 .message-bubble {
     -fx-padding: 8 12;
@@ -139,6 +144,10 @@
 }
 .message-text {
     -fx-fill: black;
+}
+.deleted-message-text {
+    -fx-fill: #888;
+    -fx-font-style: italic;
 }
 .message-meta {
     -fx-font-size: 10px;

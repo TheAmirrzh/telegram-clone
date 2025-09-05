@@ -68,6 +68,12 @@ public class MembersViewController {
                     Platform.runLater(() -> titleLabel.setText("Channel Subscribers"));
                     Channel channel = (Channel) chatEntity;
                     isCurrentUserAdmin = channel.getOwnerId().equals(currentUser.getId());
+
+                    // Permission Check: Only the owner can view the list of subscribers.
+                    if (!isCurrentUserAdmin) {
+                        return Collections.<User>emptyList();
+                    }
+
                     currentMemberIds = new ChannelDAOImpl().findSubscribers(channel.getId());
                     return new UserDAOImpl().findByIds(currentMemberIds);
                 }
@@ -76,7 +82,11 @@ public class MembersViewController {
             }
             return Collections.<User>emptyList();
         }, (List<User> users) -> {
-            if (users != null) {
+            // UI Hint for non-admins on channels
+            if (chatEntity instanceof Channel && !isCurrentUserAdmin) {
+                membersListView.getItems().clear();
+                membersListView.setPlaceholder(new Label("Only the channel owner can see subscribers."));
+            } else if (users != null) {
                 membersListView.getItems().setAll(users);
                 membersListView.setCellFactory(lv -> new ListCell<>() {
                     @Override
@@ -85,6 +95,7 @@ public class MembersViewController {
                         setText(empty ? null : user.getDisplayName());
                     }
                 });
+                membersListView.setPlaceholder(new Label("No members found."));
             }
             updateButtonStates();
         }, null);
@@ -92,8 +103,10 @@ public class MembersViewController {
 
 
     private void updateButtonStates() {
+        boolean isGroup = chatEntity instanceof Group;
         boolean adminControlsVisible = isCurrentUserAdmin && selectedMember != null && !selectedMember.getId().equals(currentUser.getId());
-        promoteButton.setVisible(adminControlsVisible);
+
+        promoteButton.setVisible(adminControlsVisible && isGroup); // Promote is a group-only feature
         removeButton.setVisible(adminControlsVisible);
         addMemberButton.setVisible(isCurrentUserAdmin);
     }
@@ -110,7 +123,6 @@ public class MembersViewController {
             AddMemberController ctrl = loader.getController();
             ctrl.initData(chatEntity, currentMemberIds);
             dialog.showAndWait();
-            // After the "Add Member" dialog is closed, refresh the list
             refreshMemberList();
         } catch (IOException e) {
             e.printStackTrace();
@@ -133,7 +145,7 @@ public class MembersViewController {
             }
         }, success -> {
             if (success) {
-                refreshMemberList(); // Refresh to show new role (visually)
+                refreshMemberList();
             } else {
                 FX.showError("Failed to promote user.");
             }
@@ -149,7 +161,7 @@ public class MembersViewController {
                 if (chatEntity instanceof Group) {
                     new GroupDAOImpl().removeMember(((Group) chatEntity).getId(), selectedMember.getId());
                 } else if (chatEntity instanceof Channel) {
-                    // Note: You would need a removeSubscriber method in ChannelDAO
+                    // To implement this, you would need a removeSubscriber method in ChannelDAO
                     // new ChannelDAOImpl().removeSubscriber(((Channel) chatEntity).getId(), selectedMember.getId());
                 }
                 return true;
@@ -171,4 +183,3 @@ public class MembersViewController {
         ((Stage) titleLabel.getScene().getWindow()).close();
     }
 }
-

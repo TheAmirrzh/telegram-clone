@@ -324,7 +324,7 @@ public class MainController {
             dialog.setTitle("Edit Profile");
             dialog.setScene(new Scene(loader.load()));
             ProfileController ctrl = loader.getController();
-            ctrl.initData(currentUser);
+            ctrl.initData(currentUser, currentUser); // Pass current user for both, indicating it's editable
             dialog.showAndWait();
             refreshProfileView();
         } catch (IOException e) {
@@ -332,4 +332,3 @@ public class MainController {
         }
     }
 }
-

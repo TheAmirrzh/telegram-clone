@@ -17,7 +17,7 @@
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
     </padding>
     <children>
-        <Label styleClass="heading" text="Edit Profile">
+        <Label styleClass="heading" text="User Profile">
             <font>
                 <Font name="System Bold" size="18.0"/>
             </font>
@@ -27,7 +27,7 @@
                 <Circle centerX="50.0" centerY="50.0" radius="50.0"/>
             </clip>
         </ImageView>
-        <Button mnemonicParsing="false" onAction="#onChooseImage" text="Upload New Picture"/>
+        <Button fx:id="chooseImageButton" mnemonicParsing="false" onAction="#onChooseImage" text="Upload New Picture"/>
         <VBox spacing="5.0">
             <children>
                 <Label text="Display Name" styleClass="form-label"/>
@@ -42,8 +42,8 @@
         </VBox>
         <HBox alignment="CENTER" spacing="10.0">
             <children>
-                <Button defaultButton="true" onAction="#onSave" text="Save Changes"/>
-                <Button cancelButton="true" onAction="#onLogout" styleClass="danger-button" text="Logout"/>
+                <Button fx:id="saveButton" defaultButton="true" onAction="#onSave" text="Save Changes"/>
+                <Button fx:id="logoutButton" cancelButton="true" onAction="#onLogout" styleClass="danger-button" text="Logout"/>
             </children>
         </HBox>
         <Label fx:id="messageLabel" styleClass="error-label"/>
