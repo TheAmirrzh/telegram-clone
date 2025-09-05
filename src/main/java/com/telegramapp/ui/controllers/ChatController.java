@@ -55,16 +55,22 @@ public class ChatController {
     @FXML private ImageView chatAvatarImageView;
     @FXML private Label chatNameLabel;
     @FXML private Label chatStatusLabel;
+    @FXML private Button manageMembersButton;
 
     private MessageService messageService;
     private User currentUser;
     private String receiverId;
     private String receiverType;
     private Object chatEntity;
+    private MainController mainController;
 
     private volatile LocalDateTime lastLoaded = LocalDateTime.now().minusYears(1);
     private ScheduledExecutorService scheduler;
     private final Map<String, User> userCache = new ConcurrentHashMap<>();
+
+    public void setMainController(MainController mainController) {
+        this.mainController = mainController;
+    }
 
     @FXML
     public void initialize() {
@@ -87,9 +93,10 @@ public class ChatController {
         loadInitialMessages();
     }
 
-
     private void configureHeader() {
         chatHeader.setOnMouseClicked(event -> onHeaderClick());
+        manageMembersButton.setVisible(false); // Hide by default
+
         FX.runAsync(() -> {
             try {
                 if ("USER".equalsIgnoreCase(receiverType)) {
@@ -114,19 +121,20 @@ public class ChatController {
                 Group g = (Group) entity;
                 chatNameLabel.setText(g.getName());
                 chatStatusLabel.setText("Group");
+                manageMembersButton.setVisible(true); // Show for groups
             } else if (entity instanceof Channel) {
                 Channel c = (Channel) entity;
                 chatNameLabel.setText(c.getName());
                 chatStatusLabel.setText("Channel");
+                manageMembersButton.setVisible(true); // Show for channels
             }
         }, null);
     }
 
+    @FXML
     private void onHeaderClick() {
-        if (chatEntity == null) return;
-
-        try {
-            if (chatEntity instanceof User) {
+        if (chatEntity instanceof User) {
+            try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/profile.fxml"));
                 Stage dialog = new Stage();
                 dialog.initModality(Modality.APPLICATION_MODAL);
@@ -134,22 +142,32 @@ public class ChatController {
                 dialog.setTitle("User Profile");
                 dialog.setScene(new Scene(loader.load()));
                 ProfileController ctrl = loader.getController();
-                ctrl.initData((User) chatEntity, currentUser); // Pass both users to check for edit permissions
+                ctrl.initData((User) chatEntity, currentUser);
                 dialog.showAndWait();
-            } else if (chatEntity instanceof Group || chatEntity instanceof Channel) {
+            } catch (IOException e) {
+                e.printStackTrace();
+                FX.showError("Failed to open profile view.");
+            }
+        }
+    }
+
+    @FXML
+    private void onManageMembers() {
+        if (chatEntity instanceof Group || chatEntity instanceof Channel) {
+            try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/members_view.fxml"));
                 Stage dialog = new Stage();
                 dialog.initModality(Modality.APPLICATION_MODAL);
                 dialog.initOwner(chatHeader.getScene().getWindow());
-                dialog.setTitle("Members");
+                dialog.setTitle("Manage Members");
                 dialog.setScene(new Scene(loader.load()));
                 MembersViewController ctrl = loader.getController();
                 ctrl.loadMembers(currentUser, chatEntity);
                 dialog.showAndWait();
+            } catch (IOException e) {
+                e.printStackTrace();
+                FX.showError("Failed to open members view.");
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-            FX.showError("Failed to open details view.");
         }
     }
 
@@ -191,7 +209,7 @@ public class ChatController {
     private void onJoinChannel() {
         FX.runAsync(() -> {
             try {
-                new ChannelDAOImpl().addSubscriber(receiverId, currentUser.getId());
+                new ChannelDAOImpl().addSubscriber(receiverId, currentUser.getId(), "SUBSCRIBER");
                 return true;
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -222,7 +240,6 @@ public class ChatController {
                 }
             };
 
-            // Create ContextMenu for edit/delete
             ContextMenu contextMenu = new ContextMenu();
             MenuItem editItem = new MenuItem("Edit");
             MenuItem deleteItem = new MenuItem("Delete");
@@ -305,8 +322,11 @@ public class ChatController {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-            return null;
-        }, v -> {}, null);
+        }, () -> {
+            if (mainController != null) {
+                mainController.loadAllChatLists();
+            }
+        }, Throwable::printStackTrace);
     }
 
     private void startPollingForNewMessages() {
@@ -318,15 +338,22 @@ public class ChatController {
             try {
                 List<Message> newMsgs = messageService.loadNewSince(receiverType, receiverId, currentUser.getId(), lastLoaded);
                 if (!newMsgs.isEmpty()) {
-                    Platform.runLater(() -> appendList(newMsgs));
+                    Platform.runLater(() -> {
+                        appendList(newMsgs);
+                        // BUG FIX: Do NOT mark messages as read here. Only when the chat is opened.
+                        // The main list will be updated by the polling in MainController.
+                        if (mainController != null) {
+                            mainController.loadAllChatLists();
+                        }
+                    });
                     lastLoaded = newMsgs.get(newMsgs.size() - 1).getTimestamp();
-                    markMessagesAsRead();
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         }, 2, 2, TimeUnit.SECONDS);
     }
+
 
     private HBox createMessageBubble(Message m) {
         boolean mine = m.getSenderId().equals(currentUser.getId());
@@ -408,7 +435,6 @@ public class ChatController {
         return tickContainer;
     }
 
-
     private User resolveUser(String userId) {
         return userCache.computeIfAbsent(userId, id -> {
             try {
@@ -439,7 +465,6 @@ public class ChatController {
         }
         imageView.setImage(avatarImage);
     }
-
 
     private void populateList(List<Message> list) {
         messagesList.getItems().setAll(list);
@@ -484,3 +509,4 @@ public class ChatController {
         if (scheduler != null) scheduler.shutdownNow();
     }
 }
+

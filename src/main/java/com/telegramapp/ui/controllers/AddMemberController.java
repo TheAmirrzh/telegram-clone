@@ -94,7 +94,7 @@ public class AddMemberController {
                 if (chatEntity instanceof Group) {
                     new GroupDAOImpl().addMember(((Group) chatEntity).getId(), selectedUser.getId(), "MEMBER");
                 } else if (chatEntity instanceof Channel) {
-                    new ChannelDAOImpl().addSubscriber(((Channel) chatEntity).getId(), selectedUser.getId());
+                    new ChannelDAOImpl().addSubscriber(((Channel) chatEntity).getId(), selectedUser.getId(), "SUBSCRIBER");
                 }
                 return true;
             } catch (SQLException e) {

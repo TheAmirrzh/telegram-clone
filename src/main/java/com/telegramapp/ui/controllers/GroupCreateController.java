@@ -75,6 +75,7 @@ public class GroupCreateController {
             conn = DBConnection.getInstance().getConnection();
             conn.setAutoCommit(false);
 
+            // 1. Create the group
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO groups (id, name, creator_id) VALUES (?, ?, ?)")) {
                 ps.setString(1, groupId);
                 ps.setString(2, name);
@@ -82,17 +83,21 @@ public class GroupCreateController {
                 ps.executeUpdate();
             }
 
-            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO group_members (group_id, user_id) VALUES (?, ?)")) {
+            // 2. Add the creator as a member with the 'CREATOR' role
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)")) {
                 ps.setString(1, groupId);
                 ps.setString(2, currentUser.getId());
+                ps.setString(3, "CREATOR"); // Assign creator role
                 ps.executeUpdate();
             }
 
+            // 3. Add all other selected users with the default 'MEMBER' role
             List<User> selected = List.copyOf(selectedUsersList.getItems());
-            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO group_members (group_id, user_id) VALUES (?, ?)")) {
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)")) {
                 for (User u : selected) {
                     ps.setString(1, groupId);
                     ps.setString(2, u.getId());
+                    ps.setString(3, "MEMBER"); // Assign member role
                     try { ps.executeUpdate(); } catch (SQLException ex) { if (!"23505".equals(ex.getSQLState())) throw ex; }
                 }
             }

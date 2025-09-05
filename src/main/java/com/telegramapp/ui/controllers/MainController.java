@@ -245,7 +245,7 @@ public class MainController {
         });
     }
 
-    private void loadAllChatLists() {
+    public void loadAllChatLists() {
         FX.runAsync(() -> {
             try {
                 List<User> users = userDAO.findAllExcept(currentUser.getId());
@@ -339,6 +339,8 @@ public class MainController {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/chat.fxml"));
             Node chatNode = loader.load();
             activeChatController = loader.getController();
+            // Pass the MainController instance to the ChatController
+            activeChatController.setMainController(this);
             activeChatController.loadChatData(currentUser, type, id);
             chatArea.getChildren().setAll(chatNode);
             chatAreaPlaceholder.setVisible(false);

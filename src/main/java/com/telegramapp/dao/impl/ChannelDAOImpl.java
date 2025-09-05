@@ -3,6 +3,7 @@ package com.telegramapp.dao.impl;
 import com.telegramapp.dao.ChannelDAO;
 import com.telegramapp.db.DBConnection;
 import com.telegramapp.model.Channel;
+import com.telegramapp.model.ChannelSubscriberInfo;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -15,6 +16,46 @@ public class ChannelDAOImpl implements ChannelDAO {
     public ChannelDAOImpl() {
         this.ds = DBConnection.getInstance().getDataSource();
     }
+
+    @Override
+    public List<ChannelSubscriberInfo> findSubscribersWithInfo(String channelId) throws SQLException {
+        List<ChannelSubscriberInfo> subscribers = new ArrayList<>();
+        String sql = "SELECT user_id, role FROM channel_subscribers WHERE channel_id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, channelId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    subscribers.add(new ChannelSubscriberInfo(rs.getString("user_id"), rs.getString("role")));
+                }
+            }
+        }
+        return subscribers;
+    }
+
+    @Override
+    public void removeSubscriber(String channelId, String userId) throws SQLException {
+        String sql = "DELETE FROM channel_subscribers WHERE channel_id = ? AND user_id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, channelId);
+            ps.setString(2, userId);
+            ps.executeUpdate();
+        }
+    }
+
+    @Override
+    public void updateSubscriberRole(String channelId, String userId, String newRole) throws SQLException {
+        String sql = "UPDATE channel_subscribers SET role = ? WHERE channel_id = ? AND user_id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newRole);
+            ps.setString(2, channelId);
+            ps.setString(3, userId);
+            ps.executeUpdate();
+        }
+    }
+
 
     // --- New Method Implementation ---
     @Override
@@ -34,11 +75,12 @@ public class ChannelDAOImpl implements ChannelDAO {
     }
 
     @Override
-    public void addSubscriber(String channelId, String userId) throws SQLException {
-        String sql = "INSERT INTO channel_subscribers (channel_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
+    public void addSubscriber(String channelId, String userId, String role) throws SQLException {
+        String sql = "INSERT INTO channel_subscribers (channel_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT DO NOTHING";
         try (Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, channelId);
             ps.setString(2, userId);
+            ps.setString(3, role);
             ps.executeUpdate();
         }
     }
@@ -111,4 +153,3 @@ public class ChannelDAOImpl implements ChannelDAO {
         }
     }
 }
-

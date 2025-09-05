@@ -4,7 +4,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 
-<VBox spacing="12" alignment="CENTER" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.ui.controllers.LoginController">
+<VBox spacing="12" alignment="CENTER" styleClass="dialog-pane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.ui.controllers.LoginController">
   <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
 
   <Label text="Telegram — Mini" style="-fx-font-size:18px; -fx-font-weight:bold;"/>
@@ -17,5 +17,5 @@
     <Button text="Register" onAction="#onRegister" prefWidth="120"/>
   </HBox>
 
-  <Label fx:id="messageLabel" style="-fx-text-fill: #b22222;"/>
+  <Label fx:id="messageLabel" style="-fx-text-fill: #EF4444;"/>
 </VBox>

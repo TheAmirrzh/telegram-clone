@@ -3,10 +3,7 @@ package com.telegramapp.ui.controllers;
 import com.telegramapp.dao.impl.ChannelDAOImpl;
 import com.telegramapp.dao.impl.GroupDAOImpl;
 import com.telegramapp.dao.impl.UserDAOImpl;
-import com.telegramapp.model.Channel;
-import com.telegramapp.model.Group;
-import com.telegramapp.model.GroupMemberInfo;
-import com.telegramapp.model.User;
+import com.telegramapp.model.*;
 import com.telegramapp.util.FX;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -67,14 +64,16 @@ public class MembersViewController {
                 } else if (chatEntity instanceof Channel) {
                     Platform.runLater(() -> titleLabel.setText("Channel Subscribers"));
                     Channel channel = (Channel) chatEntity;
-                    isCurrentUserAdmin = channel.getOwnerId().equals(currentUser.getId());
+                    ChannelDAOImpl channelDAO = new ChannelDAOImpl();
+                    List<ChannelSubscriberInfo> subscribersInfo = channelDAO.findSubscribersWithInfo(channel.getId());
+                    isCurrentUserAdmin = subscribersInfo.stream()
+                            .anyMatch(s -> s.getUserId().equals(currentUser.getId()) && ("OWNER".equals(s.getRole()) || "ADMIN".equals(s.getRole())));
 
-                    // Permission Check: Only the owner can view the list of subscribers.
+                    // UI Hint: Regular subscribers can't see the full list, but admins can.
                     if (!isCurrentUserAdmin) {
                         return Collections.<User>emptyList();
                     }
-
-                    currentMemberIds = new ChannelDAOImpl().findSubscribers(channel.getId());
+                    currentMemberIds = subscribersInfo.stream().map(ChannelSubscriberInfo::getUserId).collect(Collectors.toList());
                     return new UserDAOImpl().findByIds(currentMemberIds);
                 }
             } catch (SQLException e) {
@@ -82,10 +81,9 @@ public class MembersViewController {
             }
             return Collections.<User>emptyList();
         }, (List<User> users) -> {
-            // UI Hint for non-admins on channels
             if (chatEntity instanceof Channel && !isCurrentUserAdmin) {
                 membersListView.getItems().clear();
-                membersListView.setPlaceholder(new Label("Only the channel owner can see subscribers."));
+                membersListView.setPlaceholder(new Label("Only channel admins can see the full subscriber list."));
             } else if (users != null) {
                 membersListView.getItems().setAll(users);
                 membersListView.setCellFactory(lv -> new ListCell<>() {
@@ -103,10 +101,8 @@ public class MembersViewController {
 
 
     private void updateButtonStates() {
-        boolean isGroup = chatEntity instanceof Group;
         boolean adminControlsVisible = isCurrentUserAdmin && selectedMember != null && !selectedMember.getId().equals(currentUser.getId());
-
-        promoteButton.setVisible(adminControlsVisible && isGroup); // Promote is a group-only feature
+        promoteButton.setVisible(adminControlsVisible);
         removeButton.setVisible(adminControlsVisible);
         addMemberButton.setVisible(isCurrentUserAdmin);
     }
@@ -133,11 +129,15 @@ public class MembersViewController {
 
     @FXML
     private void onPromote() {
-        if (!isCurrentUserAdmin || selectedMember == null || !(chatEntity instanceof Group)) return;
+        if (!isCurrentUserAdmin || selectedMember == null) return;
 
         FX.runAsync(() -> {
             try {
-                new GroupDAOImpl().updateMemberRole(((Group) chatEntity).getId(), selectedMember.getId(), "ADMIN");
+                if (chatEntity instanceof Group) {
+                    new GroupDAOImpl().updateMemberRole(((Group) chatEntity).getId(), selectedMember.getId(), "ADMIN");
+                } else if (chatEntity instanceof Channel) {
+                    new ChannelDAOImpl().updateSubscriberRole(((Channel) chatEntity).getId(), selectedMember.getId(), "ADMIN");
+                }
                 return true;
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -161,8 +161,7 @@ public class MembersViewController {
                 if (chatEntity instanceof Group) {
                     new GroupDAOImpl().removeMember(((Group) chatEntity).getId(), selectedMember.getId());
                 } else if (chatEntity instanceof Channel) {
-                    // To implement this, you would need a removeSubscriber method in ChannelDAO
-                    // new ChannelDAOImpl().removeSubscriber(((Channel) chatEntity).getId(), selectedMember.getId());
+                    new ChannelDAOImpl().removeSubscriber(((Channel) chatEntity).getId(), selectedMember.getId());
                 }
                 return true;
             } catch (SQLException e) {

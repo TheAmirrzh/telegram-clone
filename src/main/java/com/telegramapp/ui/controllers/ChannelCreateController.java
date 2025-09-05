@@ -28,13 +28,19 @@ public class ChannelCreateController {
             return;
         }
         try {
+            ChannelDAOImpl channelDAO = new ChannelDAOImpl();
             Channel c = new Channel(name, currentUser.getId());
-            new ChannelDAOImpl().save(c);
+            // Save the channel first
+            channelDAO.save(c);
+            // Then, add the creator as the OWNER
+            channelDAO.addSubscriber(c.getId(), currentUser.getId(), "OWNER");
+
             messageLabel.setText("Channel created.");
             Stage s = (Stage) channelNameField.getScene().getWindow();
             s.close();
         } catch (SQLException e) {
             messageLabel.setText("Error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

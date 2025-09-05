@@ -43,6 +43,7 @@
         <HBox alignment="CENTER" spacing="10.0">
             <children>
                 <Button fx:id="saveButton" defaultButton="true" onAction="#onSave" text="Save Changes"/>
+                <!-- Added styleClass="danger-button" to make the logout button red -->
                 <Button fx:id="logoutButton" cancelButton="true" onAction="#onLogout" styleClass="danger-button" text="Logout"/>
             </children>
         </HBox>

@@ -8,6 +8,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
@@ -18,17 +19,19 @@
         <Insets bottom="8" left="12" right="12" top="8" />
       </padding>
       <ImageView fx:id="chatAvatarImageView" fitHeight="40" fitWidth="40" />
-      <VBox>
+      <VBox HBox.hgrow="ALWAYS">
         <Label fx:id="chatNameLabel" styleClass="chat-name-label" />
         <Label fx:id="chatStatusLabel" styleClass="chat-status-label" />
       </VBox>
+      <Region HBox.hgrow="ALWAYS" />
+      <Button fx:id="manageMembersButton" onAction="#onHeaderClick" text="Manage" visible="false"/>
     </HBox>
   </top>
   <center>
     <ListView fx:id="messagesList" styleClass="messages-list" />
   </center>
   <bottom>
-    <StackPane fx:id="bottomContainer">
+    <StackPane fx:id="bottomContainer" styleClass="bottom-container">
       <HBox fx:id="messageInputContainer" alignment="CENTER" spacing="8">
         <padding>
           <Insets bottom="10" left="10" right="10" top="10" />
@@ -41,4 +44,3 @@
     </StackPane>
   </bottom>
 </BorderPane>
-
