@@ -15,9 +15,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -39,8 +37,8 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +46,7 @@ import java.util.stream.Collectors;
 
 public class MainController {
 
+    // --- FXML UI Elements ---
     @FXML private VBox mainContainer;
     @FXML private ListView<ChatListItem> usersListView;
     @FXML private ListView<ChatListItem> groupsListView;
@@ -62,19 +61,26 @@ public class MainController {
     @FXML private ImageView sunIcon;
     @FXML private ImageView moonIcon;
     @FXML private ImageView logoImageView;
+    @FXML private TextField globalSearchField;
+    @FXML private ListView<Object> searchResultsListView;
+    @FXML private StackPane searchResultsContainer;
 
-    private User currentUser;
+
+    // --- Services and DAOs ---
     private UserDAOImpl userDAO;
     private GroupDAOImpl groupDAO;
     private ChannelDAOImpl channelDAO;
     private MessageDAOImpl messageDAO;
-    private ContactService contactService; // NEW: Contact service
+    private ContactService contactService;
+
+    // --- State Variables ---
+    private User currentUser;
     private ChatController activeChatController;
     private boolean isDarkMode = false;
     private ScheduledExecutorService scheduler;
-
     private Image lightLogo;
     private Image darkLogo;
+
 
     @FXML
     public void initialize() {
@@ -83,7 +89,6 @@ public class MainController {
         this.channelDAO = new ChannelDAOImpl();
         this.messageDAO = new MessageDAOImpl();
 
-        // NEW: Initialize contact service
         try {
             this.contactService = new ContactService();
         } catch (SQLException e) {
@@ -91,15 +96,85 @@ public class MainController {
             FX.showError("Failed to initialize contact service.");
         }
 
-        // Load logos once
         lightLogo = new Image(getClass().getResourceAsStream("/assets/telegram_logo.png"));
         darkLogo = new Image(getClass().getResourceAsStream("/assets/telegram_logo_dark.png"));
 
         setupSelectionListeners();
+        setupGlobalSearch();
         profileContainer.setOnMouseClicked(event -> onEditProfile());
         themeToggleContainer.setOnMouseClicked(event -> toggleTheme());
         sunIcon.setOpacity(0);
         moonIcon.setOpacity(1);
+    }
+
+    private void setupGlobalSearch() {
+        searchResultsListView.setVisible(false);
+        searchResultsContainer.setVisible(false);
+
+        globalSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null || newVal.trim().isEmpty()) {
+                searchResultsListView.setVisible(false);
+                searchResultsContainer.setVisible(false);
+            } else {
+                performSearch(newVal.trim());
+            }
+        });
+
+        searchResultsListView.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(Object item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    if (item instanceof User user) {
+                        setText(user.getDisplayName() + " (@" + user.getUsername() + ")");
+                    } else if (item instanceof Group group) {
+                        setText(group.getName() + " (Group)");
+                    } else if (item instanceof Channel channel) {
+                        setText(channel.getName() + " (Channel)");
+                    }
+                }
+            }
+        });
+
+        searchResultsListView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                Object selected = searchResultsListView.getSelectionModel().getSelectedItem();
+                if (selected instanceof User user) {
+                    openUserChat(user);
+                } else if (selected instanceof Group group) {
+                    openChatView("GROUP", group.getId());
+                } else if (selected instanceof Channel channel) {
+                    openChatView("CHANNEL", channel.getId());
+                }
+                globalSearchField.clear();
+                searchResultsContainer.setVisible(false);
+            }
+        });
+    }
+
+    private void performSearch(String query) {
+        FX.runAsync(() -> {
+            try {
+                List<User> users = userDAO.searchUsersForContacts(query, currentUser.getId());
+                List<Group> groups = groupDAO.searchGroups(query);
+                List<Channel> channels = channelDAO.searchChannels(query);
+                List<Object> results = new java.util.ArrayList<>();
+                results.addAll(users);
+                results.addAll(groups);
+                results.addAll(channels);
+                return results;
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return Collections.emptyList();
+            }
+        }, results -> {
+            searchResultsListView.getItems().setAll(results);
+            searchResultsListView.setVisible(!results.isEmpty());
+            searchResultsContainer.setVisible(!results.isEmpty());
+        }, null);
     }
 
     public void setCurrentUser(User u) {
@@ -138,6 +213,7 @@ public class MainController {
         sunFade.play();
         moonFade.play();
     }
+
 
     private void refreshProfileView() {
         if (currentUser == null) return;
@@ -279,36 +355,27 @@ public class MainController {
         });
     }
 
-    // In src/main/java/com/telegramapp/ui/controllers/MainController.java
-
     public void loadAllChatLists() {
         if (currentUser == null) return;
         FX.runAsync(() -> {
             try {
-                // Get all contacts
                 List<User> contacts = contactService.getContacts(currentUser.getId());
                 List<ChatListItem> userItems = contacts.stream()
                         .map(user -> {
                             try {
-                                // Find the last message and unread count
                                 Optional<Message> lastMessageOpt = messageDAO.findLastMessageForChat("USER", user.getId(), currentUser.getId());
                                 int unreadCount = messageDAO.getUnreadMessageCount("USER", user.getId(), currentUser.getId());
-
-                                // *** MODIFIED LOGIC HERE ***
-                                // Only include the user in the list if a conversation exists
                                 if (lastMessageOpt.isPresent()) {
                                     String msgText = lastMessageOpt.get().getContent();
                                     LocalDateTime ts = lastMessageOpt.get().getTimestamp();
                                     return new ChatListItem(user, msgText, unreadCount, ts);
                                 } else {
-                                    // If there's no message, return null to filter them out
                                     return null;
                                 }
                             } catch (SQLException e) {
                                 throw new RuntimeException(e);
                             }
                         })
-                        // Filter out the null entries (users with no messages)
                         .filter(Objects::nonNull)
                         .collect(Collectors.toList());
 
@@ -327,7 +394,7 @@ public class MainController {
                         })
                         .collect(Collectors.toList());
 
-                List<Channel> channels = channelDAO.findAll();
+                List<Channel> channels = channelDAO.findSubscribedChannels(currentUser.getId());
                 List<ChatListItem> channelItems = channels.stream()
                         .map(channel -> {
                             try {
@@ -401,6 +468,10 @@ public class MainController {
         }
     }
 
+    public void openUserChat(User user) {
+        openChatView("USER", user.getId());
+    }
+
     @FXML
     private void onNewGroup() {
         try {
@@ -421,6 +492,12 @@ public class MainController {
     }
 
     @FXML
+    private void onNewChat() {
+        onManageContacts();
+    }
+
+
+    @FXML
     private void onNewChannel() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/channel_create.fxml"));
@@ -439,7 +516,6 @@ public class MainController {
         }
     }
 
-    // NEW: Manage Contacts functionality
     @FXML
     private void onManageContacts() {
         try {
@@ -455,7 +531,6 @@ public class MainController {
             ctrl.initData(currentUser, this);
             dialog.showAndWait();
 
-            // Refresh chat lists after managing contacts
             loadAllChatLists();
         } catch (IOException e) {
             e.printStackTrace();
@@ -488,21 +563,5 @@ public class MainController {
             scheduler.shutdownNow();
         }
     }
-    @FXML
-    private void onNewChat() {
-        onManageContacts();
-    }
-    public void openPrivateChatWithUser(User user) {
-        if (user != null) {
-            // Clear selections in the list views to avoid visual confusion
-            usersListView.getSelectionModel().clearSelection();
-            groupsListView.getSelectionModel().clearSelection();
-            channelsListView.getSelectionModel().clearSelection();
-
-            // Directly open the chat view for the selected user
-            openChatView("USER", user.getId());
-        }
-    }
-
-
 }
+

@@ -1,8 +1,3 @@
--- =====================================================
--- TELEGRAM APP - COMPLETE DATABASE SCHEMA
--- Enhanced with Contact Management System
--- =====================================================
-
 -- Drop existing tables if they exist (for clean setup)
 DROP TABLE IF EXISTS typing_status CASCADE;
 DROP TABLE IF EXISTS channel_subscribers CASCADE;
@@ -12,9 +7,7 @@ DROP TABLE IF EXISTS groups CASCADE;
 DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
--- =====================================================
 -- CORE TABLES
--- =====================================================
 
 -- Users table (enhanced with contact fields)
 CREATE TABLE users (
@@ -59,9 +52,7 @@ CREATE TABLE channels (
     is_public BOOLEAN DEFAULT TRUE
 );
 
--- =====================================================
 -- MESSAGING TABLES
--- =====================================================
 
 -- Messages table (enhanced)
 CREATE TABLE messages (
@@ -80,9 +71,7 @@ CREATE TABLE messages (
     edited_at TIMESTAMP NULL
 );
 
--- =====================================================
 -- MEMBERSHIP TABLES
--- =====================================================
 
 -- Group members
 CREATE TABLE group_members (
@@ -104,9 +93,7 @@ CREATE TABLE channel_subscribers (
     PRIMARY KEY (channel_id, user_id)
 );
 
--- =====================================================
 -- REAL-TIME FEATURES
--- =====================================================
 
 -- Typing status
 CREATE TABLE typing_status (
@@ -116,9 +103,8 @@ CREATE TABLE typing_status (
     PRIMARY KEY (chat_id, user_id)
 );
 
--- =====================================================
+
 -- INDEXES FOR PERFORMANCE
--- =====================================================
 
 -- Basic indexes for users table
 CREATE INDEX idx_users_username ON users (username);
@@ -156,9 +142,9 @@ CREATE INDEX idx_typing_status_chat ON typing_status (chat_id);
 CREATE INDEX idx_typing_status_user ON typing_status (user_id);
 CREATE INDEX idx_typing_status_last_typed ON typing_status (last_typed);
 
--- =====================================================
+
 -- SAMPLE DATA (FOR TESTING)
--- =====================================================
+
 
 -- Sample users
 INSERT INTO users (id, username, password_hash, display_name, bio, status) VALUES
@@ -174,8 +160,7 @@ INSERT INTO messages (id, sender_id, receiver_id, receiver_type, content, timest
 ('msg-2', 'user-2', 'user-1', 'USER', 'Hi John! I am good, thanks!', NOW() - INTERVAL '30 MINUTE', 'READ'),
 ('msg-3', 'user-1', 'user-3', 'USER', 'Want to grab lunch tomorrow?', NOW() - INTERVAL '15 MINUTE', 'UNREAD');
 
--- =====================================================
+
 -- END OF SCHEMA
--- =====================================================
 
 SELECT 'Database schema created successfully!' as Status;

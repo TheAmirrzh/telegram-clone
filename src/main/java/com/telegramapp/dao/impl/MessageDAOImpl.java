@@ -121,8 +121,6 @@ public class MessageDAOImpl implements MessageDAO {
         if ("USER".equalsIgnoreCase(receiverType)) {
             sql = "UPDATE messages SET read_status = 'READ' WHERE receiver_type = 'USER' AND sender_id = ? AND receiver_id = ? AND read_status = 'UNREAD'";
         } else {
-            // In groups/channels, you haven't "read" your own messages until others see them, so this logic is simplified
-            // A more complex implementation would track read receipts per user.
             sql = "UPDATE messages SET read_status = 'READ' WHERE receiver_type = ? AND receiver_id = ? AND sender_id <> ? AND read_status = 'UNREAD'";
         }
 

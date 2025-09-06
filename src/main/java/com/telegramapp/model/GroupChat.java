@@ -4,9 +4,6 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Represents a message inside a group chat.
- */
 public class GroupChat {
     private final String id;
     private String groupId;
@@ -22,7 +19,6 @@ public class GroupChat {
         this.timestamp = LocalDateTime.now();
     }
 
-    /** Full constructor (when reading from DB) */
     public GroupChat(String id, String groupId, String senderId, String content, LocalDateTime timestamp) {
         this.id = id;
         this.groupId = groupId;

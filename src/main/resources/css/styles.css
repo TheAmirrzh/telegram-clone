@@ -1,6 +1,5 @@
-/* styles.css */
 
-/* --- COMMON STYLES (Theme-independent) --- */
+/*COMMON STYLES (Theme-independent)*/
 .root {
     -fx-font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
@@ -39,7 +38,7 @@
     -fx-background-color: #c0392b;
 }
 
-/* NEW: Success button for positive actions */
+/* Success button for positive actions */
 .success-button {
     -fx-background-color: #27ae60;
 }
@@ -292,7 +291,7 @@
 .theme-dark .menu-button .menu-item:hover {
     -fx-background-color: #3b4a5c;
 }
-/* --- NEW STYLES FOR MENU ITEM SELECTION --- */
+/* ---STYLES FOR MENU ITEM SELECTION --- */
 .menu-button .menu-item:focused {
     -fx-background-color: #3498db; /* Use our primary accent color */
 }
@@ -345,3 +344,29 @@
 .theme-dark .contact-count-badge { -fx-background-color: #2b3a4c; -fx-text-fill: #FFFFFF; }
 .theme-dark .contact-list-item:hover { -fx-background-color: rgba(142, 68, 173, 0.2); }
 
+.search-bar-container {
+    -fx-alignment: CENTER_LEFT;
+}
+
+.search-field {
+    -fx-background-color: #eaf6ff;
+    -fx-background-radius: 20;
+    -fx-border-radius: 20;
+    -fx-border-width: 0;
+    -fx-padding: 8 15 8 35; /* Add left padding for the icon */
+    -fx-prompt-text-fill: #95a5a6;
+}
+
+.search-icon-svg {
+    -fx-fill: #95a5a6;
+    -fx-translate-x: 12;
+}
+
+.theme-dark .search-field {
+    -fx-background-color: #2b3a4c;
+    -fx-prompt-text-fill: #708090;
+}
+
+.theme-dark .search-icon-svg {
+    -fx-fill: #708090;
+}

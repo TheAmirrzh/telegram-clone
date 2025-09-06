@@ -12,17 +12,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 import com.telegramapp.db.DBConnection;
 
-/**
- * PgNotifyClient manages a dedicated Postgres connection that LISTENs on channels
- * and dispatches NOTIFY payloads to a callback on a background thread.
- *
- * Channel naming convention:
- *   private_<chatIdNoHyphens>
- *   group_<groupIdNoHyphens>
- *   channel_<channelIdNoHyphens>
- *
- * Payload is the NOTIFY payload text (JSON string).
- */
+
+
 public class PgNotifyClient implements AutoCloseable {
     private final Consumer<String> onNotify;
     private volatile boolean running = false;

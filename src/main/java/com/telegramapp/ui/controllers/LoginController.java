@@ -104,7 +104,8 @@ public class LoginController {
     private void openMainWindow(User user) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/main.fxml"));
-            Scene scene = new Scene(loader.load());
+            // Added default dimensions (1200x800) to the Scene constructor.
+            Scene scene = new Scene(loader.load(), 1200, 800);
             scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
 
             MainController ctrl = loader.getController();
@@ -113,7 +114,7 @@ public class LoginController {
             Stage stage = (Stage) usernameField.getScene().getWindow();
             stage.setTitle("Telegram - " + user.getDisplayName());
             stage.setScene(scene);
-            stage.centerOnScreen(); // Center the new, larger window
+            stage.centerOnScreen();
         } catch (IOException ex) {
             ex.printStackTrace();
             messageLabel.setText("Failed to load main window.");

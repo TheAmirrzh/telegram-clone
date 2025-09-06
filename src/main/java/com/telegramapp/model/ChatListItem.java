@@ -47,7 +47,6 @@ public class ChatListItem {
         if (chatObject instanceof User) {
             return ((User) chatObject);
         }
-        // For groups/channels, we don't have a single representative user avatar in this model
         return null;
     }
 }

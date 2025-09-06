@@ -6,9 +6,7 @@ import com.telegramapp.model.Message;
 import java.sql.SQLException;
 import java.util.UUID;
 
-/**
- * Notification service that can insert notification messages into the DB.
- */
+
 public class NotificationService {
     private final MessageDAOImpl messageDAO;
 

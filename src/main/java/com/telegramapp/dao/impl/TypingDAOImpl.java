@@ -20,8 +20,9 @@ public class TypingDAOImpl implements TypingDAO {
 
     @Override
     public void setTyping(String chatId, String userId) throws SQLException {
-        String sql = "INSERT INTO typing_status (chat_id, user_id, last_ts) VALUES (?, ?, NOW()) " +
-                "ON CONFLICT (chat_id, user_id) DO UPDATE SET last_ts = NOW()";
+
+        String sql = "INSERT INTO typing_status (chat_id, user_id, last_typed) VALUES (?, ?, NOW()) " +
+                "ON CONFLICT (chat_id, user_id) DO UPDATE SET last_typed = NOW()";
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, chatId);
@@ -34,15 +35,13 @@ public class TypingDAOImpl implements TypingDAO {
     public List<String> getTypingUsers(String chatId, String currentUserId, int secondsWindow) throws SQLException {
         List<String> typingUsers = new ArrayList<>();
 
-        // FIXED: The SQL now correctly uses placeholders for all values.
         String sql = "SELECT user_id FROM typing_status WHERE chat_id = ? AND user_id <> ? AND last_typed >= NOW() - (? * INTERVAL '1 second')";
 
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, chatId);
             ps.setString(2, currentUserId);
-            ps.setInt(3, secondsWindow); // Use setInt for the interval
-
+            ps.setInt(3, secondsWindow);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     typingUsers.add(rs.getString("user_id"));
@@ -52,4 +51,3 @@ public class TypingDAOImpl implements TypingDAO {
         return typingUsers;
     }
 }
-

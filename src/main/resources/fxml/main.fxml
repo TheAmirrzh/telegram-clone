@@ -5,6 +5,7 @@
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.HBox?>
@@ -17,51 +18,57 @@
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.MainController"
       styleClass="main-container" fx:id="mainContainer">
 
-  <!-- Streamlined Top Toolbar -->
+  <!-- Top Toolbar -->
   <HBox alignment="CENTER_LEFT" styleClass="top-toolbar">
     <padding>
       <Insets top="8" right="12" bottom="8" left="12"/>
     </padding>
 
-    <!-- Profile Bubble (now on the left) -->
-    <HBox fx:id="profileContainer" alignment="CENTER_LEFT" styleClass="profile-bubble" spacing="10" HBox.hgrow="ALWAYS">
+    <!-- *** THIS IS THE FIX *** -->
+    <!-- Re-added the logo ImageView that was missing -->
+    <ImageView fx:id="logoImageView" fitHeight="40" fitWidth="40" preserveRatio="true">
+      <image>
+        <Image url="@../assets/telegram_logo.png"/>
+      </image>
+    </ImageView>
+    <Region HBox.hgrow="ALWAYS"/>
+
+    <HBox fx:id="profileContainer" alignment="CENTER_LEFT" spacing="10" styleClass="profile-bubble">
       <ImageView fx:id="profileImageView" fitHeight="40" fitWidth="40"/>
       <VBox alignment="CENTER_LEFT">
         <Label fx:id="profileNameLabel" text="Profile Name"/>
         <Label fx:id="profileUsernameLabel" text="@username" styleClass="username-label"/>
       </VBox>
     </HBox>
-
     <Region HBox.hgrow="ALWAYS"/>
-
-    <!-- Contacts Button -->
-    <Button text="Contacts" onAction="#onManageContacts" styleClass="button"/>
-
-    <!-- Theme Toggle -->
+    <Button onAction="#onManageContacts" styleClass="button" text="Contacts"/>
     <StackPane fx:id="themeToggleContainer" styleClass="theme-toggle-container">
-      <ImageView fx:id="sunIcon" styleClass="theme-icon" fitWidth="20" fitHeight="20">
-        <image><Image url="@../assets/sun_icon.png"/></image>
-      </ImageView>
-      <ImageView fx:id="moonIcon" styleClass="theme-icon" fitWidth="20" fitHeight="20">
-        <image><Image url="@../assets/moon_icon.png"/></image>
-      </ImageView>
+      <children>
+        <ImageView fx:id="sunIcon" fitHeight="20" fitWidth="20" styleClass="theme-icon">
+          <image>
+            <Image url="@../assets/sun_icon.png"/>
+          </image>
+        </ImageView>
+        <ImageView fx:id="moonIcon" fitHeight="20" fitWidth="20" styleClass="theme-icon">
+          <image>
+            <Image url="@../assets/moon_icon.png"/>
+          </image>
+        </ImageView>
+      </children>
     </StackPane>
   </HBox>
 
   <!-- Main Content Area -->
   <SplitPane dividerPositions="0.3" styleClass="main-split-pane" VBox.vgrow="ALWAYS">
     <items>
-      <!-- Sidebar with lists -->
+      <!-- Sidebar -->
       <VBox styleClass="sidebar">
-
-        <!-- Sidebar Header with New Chat Button -->
-        <HBox alignment="CENTER_LEFT" styleClass="sidebar-header">
-          <padding><Insets top="8" right="8" bottom="8" left="15"/></padding>
-          <Label text="Chats" styleClass="dialog-header"/>
-          <Region HBox.hgrow="ALWAYS"/>
+        <!-- Search and Actions -->
+        <HBox alignment="CENTER" spacing="5" styleClass="sidebar-header">
+          <padding><Insets top="8" right="8" bottom="8" left="8"/></padding>
+          <TextField fx:id="globalSearchField" promptText="Search" HBox.hgrow="ALWAYS"/>
           <MenuButton text="+" styleClass="button">
             <items>
-              <!-- *** MODIFIED: ADDED NEW CHAT OPTION *** -->
               <MenuItem text="New Chat" onAction="#onNewChat"/>
               <MenuItem text="New Group" onAction="#onNewGroup"/>
               <MenuItem text="New Channel" onAction="#onNewChannel"/>
@@ -69,28 +76,32 @@
           </MenuButton>
         </HBox>
 
-        <!-- Lists Container -->
-        <VBox VBox.vgrow="ALWAYS">
-          <padding>
-            <Insets top="8" right="8" bottom="8" left="8"/>
-          </padding>
-          <Label text="Contacts" styleClass="list-header"/>
-          <ListView fx:id="usersListView" VBox.vgrow="ALWAYS"/>
-        </VBox>
-        <VBox VBox.vgrow="ALWAYS">
-          <padding>
-            <Insets top="8" right="8" bottom="8" left="8"/>
-          </padding>
-          <Label text="Groups" styleClass="list-header"/>
-          <ListView fx:id="groupsListView" VBox.vgrow="ALWAYS"/>
-        </VBox>
-        <VBox VBox.vgrow="ALWAYS">
-          <padding>
-            <Insets top="8" right="8" bottom="8" left="8"/>
-          </padding>
-          <Label text="Channels" styleClass="list-header"/>
-          <ListView fx:id="channelsListView" VBox.vgrow="ALWAYS"/>
-        </VBox>
+        <!-- Chat Lists / Search Results -->
+        <StackPane VBox.vgrow="ALWAYS">
+          <VBox fx:id="chatListsContainer">
+            <VBox VBox.vgrow="ALWAYS">
+              <padding><Insets top="8" right="8" bottom="8" left="8"/></padding>
+              <Label text="Contacts" styleClass="list-header"/>
+              <ListView fx:id="usersListView" VBox.vgrow="ALWAYS"/>
+            </VBox>
+            <VBox VBox.vgrow="ALWAYS">
+              <padding><Insets top="8" right="8" bottom="8" left="8"/></padding>
+              <Label text="Groups" styleClass="list-header"/>
+              <ListView fx:id="groupsListView" VBox.vgrow="ALWAYS"/>
+            </VBox>
+            <VBox VBox.vgrow="ALWAYS">
+              <padding><Insets top="8" right="8" bottom="8" left="8"/></padding>
+              <Label text="Channels" styleClass="list-header"/>
+              <ListView fx:id="channelsListView" VBox.vgrow="ALWAYS"/>
+            </VBox>
+          </VBox>
+
+          <!-- Search Results Container -->
+          <StackPane fx:id="searchResultsContainer" styleClass="search-results-pane" visible="false">
+            <ListView fx:id="searchResultsListView"/>
+          </StackPane>
+        </StackPane>
+
       </VBox>
 
       <!-- Main chat area -->
@@ -98,16 +109,14 @@
         <children>
           <VBox alignment="CENTER" spacing="10">
             <ImageView fitHeight="100" fitWidth="100">
-              <image>
-                <Image url="@../assets/telegram_logo.png" />
+              <image><Image url="@../assets/telegram_logo.png" />
               </image>
             </ImageView>
-            <Label fx:id="chatAreaPlaceholder" text="Select a contact to begin messaging"
-                   styleClass="chat-area-placeholder"/>
+            <Label fx:id="chatAreaPlaceholder" text="Select a contact to begin messaging" styleClass="chat-area-placeholder"/>
           </VBox>
         </children>
       </StackPane>
     </items>
   </SplitPane>
-
 </VBox>
+

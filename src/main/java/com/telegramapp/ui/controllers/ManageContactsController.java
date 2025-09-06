@@ -48,19 +48,6 @@ public class ManageContactsController {
         setupContactsList();
         setupSearchListener();
         setupSelectionListener();
-
-        // --- NEW: Add a double-click listener to open a chat ---
-        contactsListView.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2) { // Check for double-click
-                User selectedContact = contactsListView.getSelectionModel().getSelectedItem();
-                if (selectedContact != null && mainController != null) {
-                    // Tell the MainController to open the chat
-                    mainController.openPrivateChatWithUser(selectedContact);
-                    // Close this dialog window
-                    onClose();
-                }
-            }
-        });
     }
 
     public void initData(User currentUser, MainController mainController) {
@@ -71,6 +58,16 @@ public class ManageContactsController {
     }
 
     private void setupContactsList() {
+        contactsListView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                User selectedContact = contactsListView.getSelectionModel().getSelectedItem();
+                if (selectedContact != null && mainController != null) {
+                    mainController.openUserChat(selectedContact);
+                    onClose();
+                }
+            }
+        });
+
         contactsListView.setCellFactory(lv -> new ListCell<>() {
             private final HBox content;
             private final ImageView avatar;
@@ -197,11 +194,7 @@ public class ManageContactsController {
             controller.initData(currentUser, contactService);
 
             dialog.showAndWait();
-
-            // Refresh contacts list after dialog closes
             loadContacts();
-
-            // Refresh main controller chat lists
             if (mainController != null) {
                 mainController.loadAllChatLists();
             }
@@ -238,8 +231,6 @@ public class ManageContactsController {
                 if (success) {
                     messageLabel.setText("Contact removed successfully.");
                     loadContacts();
-
-                    // Refresh main controller chat lists
                     if (mainController != null) {
                         mainController.loadAllChatLists();
                     }
@@ -271,8 +262,7 @@ public class ManageContactsController {
             dialog.setScene(scene);
 
             ProfileController controller = loader.getController();
-            controller.initData(selectedContact, currentUser); // View-only mode
-
+            controller.initData(selectedContact, currentUser);
             dialog.showAndWait();
 
         } catch (IOException e) {
@@ -288,10 +278,8 @@ public class ManageContactsController {
 
     private void loadAvatar(User user, ImageView imageView) {
         if (user == null || imageView == null) return;
-
         String picPath = user.getProfilePicPath();
         Image avatarImage = null;
-
         if (picPath != null && !picPath.isBlank()) {
             try (FileInputStream fis = new FileInputStream(new File(picPath))) {
                 avatarImage = new Image(fis);
@@ -309,7 +297,7 @@ public class ManageContactsController {
                 e.printStackTrace();
             }
         }
-
         imageView.setImage(avatarImage);
     }
 }
+

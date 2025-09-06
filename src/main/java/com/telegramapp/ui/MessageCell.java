@@ -9,9 +9,7 @@ import javafx.scene.layout.HBox;
 import java.io.File;
 import java.awt.Desktop;
 
-/**
- * Simple message cell that expects Message#getMediaPath()
- */
+
 public class MessageCell extends ListCell<Message> {
     @Override
     protected void updateItem(Message item, boolean empty) {

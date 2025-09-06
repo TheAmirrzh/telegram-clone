@@ -13,5 +13,7 @@ public interface GroupDAO {
     void removeMember(String groupId, String userId) throws SQLException;
     void updateMemberRole(String groupId, String userId, String role) throws SQLException;
     List<GroupMemberInfo> findMembersWithInfo(String groupId) throws SQLException;
+    List<Group> searchGroups(String query) throws SQLException;
+
 }
 

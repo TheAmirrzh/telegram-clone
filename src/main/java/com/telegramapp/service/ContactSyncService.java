@@ -10,9 +10,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Service for importing/exporting contacts and contact synchronization
- */
+
 public class ContactSyncService {
     private final ContactService contactService;
 
@@ -20,9 +18,7 @@ public class ContactSyncService {
         this.contactService = contactService;
     }
 
-    /**
-     * Export contacts to CSV file
-     */
+    // Export contacts to CSV file
     public void exportContacts(String userId, Window owner) throws Exception {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Export Contacts");
@@ -49,9 +45,7 @@ public class ContactSyncService {
         }
     }
 
-    /**
-     * Import contacts from CSV file
-     */
+    // Import contacts from CSV file
     public ImportResult importContacts(String userId, Window owner) throws Exception {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Import Contacts");
@@ -100,11 +94,9 @@ public class ContactSyncService {
         return new ImportResult(imported, failed, errors);
     }
 
-    /**
-     * Backup contacts to JSON
-     */
+    // Backup contacts to JSON
+
     public void backupContacts(String userId, Window owner) throws Exception {
-        // Implementation for JSON backup
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Backup Contacts");
         fileChooser.getExtensionFilters().add(
@@ -116,7 +108,7 @@ public class ContactSyncService {
 
         List<User> contacts = contactService.getContacts(userId);
 
-        // Simple JSON export (you might want to use a proper JSON library)
+        // Simple JSON export
         try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
             writer.println("{");
             writer.println("  \"export_date\": \"" + new Date() + "\",");

@@ -3,9 +3,7 @@ package com.telegramapp.model;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/**
- * Enhanced Contact model with additional features
- */
+
 public class Contact {
     private final String id;
     private String userId;

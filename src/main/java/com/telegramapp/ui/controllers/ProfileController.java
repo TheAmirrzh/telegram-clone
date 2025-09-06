@@ -53,11 +53,7 @@ public class ProfileController {
         profileImageView.setClip(clip);
     }
 
-    /**
-     * Initializes the profile view.
-     * @param displayedUser The user whose profile is being shown.
-     * @param currentUser The currently logged-in user. Editing is only allowed if they are the same.
-     */
+
     public void initData(User displayedUser, User currentUser) {
         this.displayedUser = displayedUser;
         this.isEditable = displayedUser.getId().equals(currentUser.getId());
@@ -172,6 +168,9 @@ public class ProfileController {
             try {
                 FXMLLoader loader = new FXMLLoader(App.class.getResource("/fxml/login.fxml"));
                 Scene scene = new Scene(loader.load());
+
+                scene.getStylesheets().add(App.class.getResource("/css/styles.css").toExternalForm());
+
                 Stage loginStage = new Stage();
                 loginStage.setScene(scene);
                 loginStage.setTitle("Telegram - Login");

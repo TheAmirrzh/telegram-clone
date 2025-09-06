@@ -14,7 +14,6 @@ public class User {
     private String profilePicPath;
     private String status;
 
-    // NEW: Contact management - stored as comma-separated IDs in user profile
     private Set<String> contactIds;
 
     public User(String username, String passwordHash, String displayName) {
@@ -36,7 +35,7 @@ public class User {
         this.contactIds = new HashSet<>();
     }
 
-    // Existing getters
+    // getters
     public String getId() { return id; }
     public String getUsername() { return username; }
     public String getPasswordHash() { return passwordHash; }
@@ -45,14 +44,13 @@ public class User {
     public String getProfilePicPath(){ return profilePicPath; }
     public String getStatus(){ return status; }
 
-    // Existing setters
+    // setters
     public void setDisplayName(String displayName) { this.displayName = displayName; }
     public void setBio(String bio){ this.bio = bio; }
     public void setProfilePicPath(String p){ this.profilePicPath = p; }
     public void setStatus(String s){ this.status = s; }
     public void setPasswordHash(String passwordHash){ this.passwordHash = passwordHash; }
 
-    // NEW: Contact management methods
     public Set<String> getContactIds() {
         return new HashSet<>(contactIds);
     }

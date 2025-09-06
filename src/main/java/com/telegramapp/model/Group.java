@@ -3,9 +3,7 @@ package com.telegramapp.model;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Simple POJO representing a Group (chat group).
- */
+
 public class Group {
     private final String id;
     private String name;
@@ -17,7 +15,6 @@ public class Group {
         this.creatorId = creatorId;
     }
 
-    /** Full constructor (e.g. when loading from DB) */
     public Group(String id, String name, String creatorId) {
         this.id = id;
         this.name = name;

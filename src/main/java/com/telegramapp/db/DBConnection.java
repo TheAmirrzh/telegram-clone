@@ -45,33 +45,27 @@ public class DBConnection {
             cfg.setUsername(user);
             cfg.setPassword(pass);
 
-            // OPTIMIZED: Faster initialization settings
-            cfg.setConnectionTimeout(5000);       // 5 seconds (reduced from 10)
-            cfg.setValidationTimeout(2000);       // 2 seconds (reduced from 5)
-            cfg.setInitializationFailTimeout(8000); // 8 seconds (reduced from 15)
+            cfg.setConnectionTimeout(5000);
+            cfg.setValidationTimeout(2000);
+            cfg.setInitializationFailTimeout(8000);
             cfg.setLeakDetectionThreshold(0);      // Disable for faster startup
 
-            // OPTIMIZED: Minimal pool for faster startup
-            cfg.setMaximumPoolSize(3);             // Reduced from 10
-            cfg.setMinimumIdle(1);                 // Start with just 1 connection
+            cfg.setMaximumPoolSize(3);
+            cfg.setMinimumIdle(1);
 
             cfg.setAutoCommit(true);
             cfg.setPoolName("telegram-hikari-pool");
-            cfg.setIdleTimeout(300000);            // 5 minutes
-            cfg.setMaxLifetime(900000);            // 15 minutes
+            cfg.setIdleTimeout(300000);
+            cfg.setMaxLifetime(900000);
 
-            // OPTIMIZED: Fast connection test
             cfg.setConnectionTestQuery("SELECT 1");
 
-            // OPTIMIZED: Don't validate connections on startup
             cfg.setConnectionInitSql(null);
 
             System.out.println("DEBUG: Creating HikariDataSource...");
             this.ds = new HikariDataSource(cfg);
             System.out.println("DEBUG: HikariDataSource created successfully");
 
-            // REMOVED: Don't test connection during initialization to speed up startup
-            // The first actual query will test the connection
 
         } catch (Exception e) {
             System.err.println("DEBUG: Failed to initialize DB pool: " + e.getMessage());

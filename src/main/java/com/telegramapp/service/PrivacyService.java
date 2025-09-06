@@ -8,9 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Service to handle privacy settings and security features
- */
+
 public class PrivacyService {
     private final ContactService contactService;
 
@@ -28,9 +26,8 @@ public class PrivacyService {
         this.contactService = contactService;
     }
 
-    /**
-     * Check if user can be added as contact based on privacy settings
-     */
+    // Check if user can be added as contact based on privacy settings
+
     public boolean canAddAsContact(String requesterId, String targetUserId) throws SQLException {
         // Check rate limiting
         if (isRateLimited(requesterId)) {
@@ -42,7 +39,7 @@ public class PrivacyService {
             return false;
         }
 
-        // Get target user's privacy settings (you'd store this in user preferences)
+        // Get target user's privacy settings
         PrivacySetting setting = getUserPrivacySetting(targetUserId);
 
         switch (setting) {
@@ -57,9 +54,7 @@ public class PrivacyService {
         }
     }
 
-    /**
-     * Block a user
-     */
+    // Block a usef
     public void blockUser(String userId, String blockedUserId) throws SQLException {
         // Remove from contacts if present
         contactService.removeContact(userId, blockedUserId);
@@ -68,27 +63,20 @@ public class PrivacyService {
         addToBlockedList(userId, blockedUserId);
     }
 
-    /**
-     * Unblock a user
-     */
+    // Unblock a user
+
     public void unblockUser(String userId, String unblockedUserId) {
         removeFromBlockedList(userId, unblockedUserId);
     }
 
-    /**
-     * Report a user for spam/abuse
-     */
+
     public void reportUser(String reporterId, String reportedUserId, String reason) {
-        // Log the report (implement proper reporting system)
+        // Log the report
         System.out.println("User " + reporterId + " reported " + reportedUserId + " for: " + reason);
 
-        // Could automatically block after certain threshold
-        // Could notify administrators
     }
 
-    /**
-     * Check if a user is being rate limited for contact requests
-     */
+
     private boolean isRateLimited(String userId) {
         LocalDateTime lastRequest = lastContactRequest.get(userId);
         if (lastRequest == null) {
@@ -105,39 +93,27 @@ public class PrivacyService {
         return false;
     }
 
-    /**
-     * Check if user is blocked
-     */
+
     private boolean isBlocked(String userId, String targetUserId) {
-        // You'd implement this with a proper blocked_users table
         return false; // Placeholder
     }
 
-    /**
-     * Get user's privacy setting
-     */
+
     private PrivacySetting getUserPrivacySetting(String userId) {
-        // You'd store this in user_settings table
         return PrivacySetting.EVERYONE; // Default
     }
 
-    /**
-     * Add user to blocked list
-     */
+
     private void addToBlockedList(String userId, String blockedUserId) {
         // Implement database storage for blocked users
     }
 
-    /**
-     * Remove user from blocked list
-     */
+
     private void removeFromBlockedList(String userId, String unblockedUserId) {
         // Implement database removal for blocked users
     }
 
-    /**
-     * Get privacy recommendations
-     */
+
     public PrivacyRecommendations getPrivacyRecommendations(String userId) throws SQLException {
         int contactCount = contactService.getContactCount(userId);
 

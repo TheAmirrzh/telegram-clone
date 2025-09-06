@@ -17,6 +17,37 @@ public class GroupDAOImpl implements GroupDAO {
         this.ds = DBConnection.getInstance().getDataSource();
     }
 
+    public List<Group> searchAllGroups(String query) throws SQLException {
+        List<Group> groups = new ArrayList<>();
+        String sql = "SELECT * FROM groups WHERE LOWER(name) LIKE LOWER(?) ORDER BY name LIMIT 50";
+        String searchPattern = "%" + query + "%";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, searchPattern);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    groups.add(new Group(rs.getString("id"), rs.getString("name"), rs.getString("creator_id")));
+                }
+            }
+        }
+        return groups;
+    }
+    @Override
+    public List<Group> searchGroups(String query) throws SQLException {
+        List<Group> groups = new ArrayList<>();
+        String sql = "SELECT * FROM groups WHERE LOWER(name) LIKE LOWER(?) LIMIT 50";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, "%" + query + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    groups.add(new Group(rs.getString("id"), rs.getString("name"), rs.getString("creator_id")));
+                }
+            }
+        }
+        return groups;
+    }
+
     @Override
     public List<GroupMemberInfo> findMembersWithInfo(String groupId) throws SQLException {
         List<GroupMemberInfo> members = new ArrayList<>();
@@ -112,4 +143,3 @@ public class GroupDAOImpl implements GroupDAO {
         }
     }
 }
-

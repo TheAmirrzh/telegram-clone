@@ -15,6 +15,5 @@ public interface UserDAO {
     void delete(String id) throws SQLException;
     List<User> findByIds(List<String> userIds) throws SQLException;
 
-    // --- New Method for User Status ---
     void updateUserStatus(String userId, String status) throws SQLException;
 }

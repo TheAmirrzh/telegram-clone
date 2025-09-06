@@ -1,4 +1,3 @@
-// In src/main/java/com/telegramapp/ui/controllers/AddContactController.java
 
 package com.telegramapp.ui.controllers;
 
@@ -37,20 +36,13 @@ public class AddContactController {
         setupSearchListener();
         setupSelectionListener();
 
-        // --- NEW ---
-        // Load all users when the window is first opened.
-        // We call searchUsers with an empty string to get all results.
         searchUsers("");
-
-        // Focus the search field for immediate typing
         searchField.requestFocus();
     }
 
     public void initData(User currentUser, ContactService contactService) {
         this.currentUser = currentUser;
         this.contactService = contactService;
-        // --- NEW ---
-        // Refresh the user list now that we have the current user's data.
         searchUsers("");
     }
 
@@ -113,9 +105,7 @@ public class AddContactController {
 
     private void setupSearchListener() {
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            // --- MODIFIED ---
-            // The search now works correctly for both initial load (empty string)
-            // and subsequent filtering.
+
             searchUsers(newVal.trim());
         });
     }
@@ -148,9 +138,7 @@ public class AddContactController {
     private void searchUsers(String query) {
         FX.runAsync(() -> {
             try {
-                // --- MODIFIED ---
-                // The contactService.searchUsersForContacts method will now handle both
-                // empty and non-empty queries correctly.
+
                 List<User> results = contactService.searchUsersForContacts(query, currentUser.getId());
 
                 // Filter out existing contacts for cleaner UI

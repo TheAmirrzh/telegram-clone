@@ -17,6 +17,71 @@ public class ChannelDAOImpl implements ChannelDAO {
         this.ds = DBConnection.getInstance().getDataSource();
     }
 
+    public List<Channel> searchPublicChannels(String query) throws SQLException {
+        List<Channel> channels = new ArrayList<>();
+        String sql = "SELECT * FROM channels WHERE is_public = TRUE AND LOWER(name) LIKE LOWER(?) ORDER BY name LIMIT 50";
+        String searchPattern = "%" + query + "%";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, searchPattern);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    channels.add(new Channel(rs.getString("id"), rs.getString("name"), rs.getString("owner_id")));
+                }
+            }
+        }
+        return channels;
+    }
+
+    @Override
+    public List<Channel> searchChannels(String query) throws SQLException {
+        List<Channel> channels = new ArrayList<>();
+        String sql = "SELECT * FROM channels WHERE LOWER(name) LIKE LOWER(?) LIMIT 50";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, "%" + query + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    channels.add(new Channel(rs.getString("id"), rs.getString("name"), rs.getString("owner_id")));
+                }
+            }
+        }
+        return channels;
+    }
+
+    @Override
+    public List<Channel> findSubscribedChannels(String userId) throws SQLException {
+        List<Channel> channels = new ArrayList<>();
+        String sql = "SELECT c.* FROM channels c JOIN channel_subscribers cs ON c.id = cs.channel_id WHERE cs.user_id = ?";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    channels.add(new Channel(rs.getString("id"), rs.getString("name"), rs.getString("owner_id")));
+                }
+            }
+        }
+        return channels;
+    }
+
+
+    @Override
+    public List<Channel> findByUserId(String userId) throws SQLException {
+        List<Channel> channels = new ArrayList<>();
+        String sql = "SELECT c.* FROM channels c JOIN channel_subscribers cs ON c.id = cs.channel_id WHERE cs.user_id = ? ORDER BY c.name";
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    channels.add(new Channel(rs.getString("id"), rs.getString("name"), rs.getString("owner_id")));
+                }
+            }
+        }
+        return channels;
+    }
+
     @Override
     public List<ChannelSubscriberInfo> findSubscribersWithInfo(String channelId) throws SQLException {
         List<ChannelSubscriberInfo> subscribers = new ArrayList<>();
@@ -56,8 +121,6 @@ public class ChannelDAOImpl implements ChannelDAO {
         }
     }
 
-
-    // --- New Method Implementation ---
     @Override
     public List<String> findSubscribers(String channelId) throws SQLException {
         List<String> subscriberIds = new ArrayList<>();
@@ -97,7 +160,6 @@ public class ChannelDAOImpl implements ChannelDAO {
         }
     }
 
-    // --- Paste existing methods from your file below this line ---
     @Override
     public void save(Channel channel) throws SQLException {
         String sql = "INSERT INTO channels (id, name, owner_id) VALUES (?, ?, ?)";

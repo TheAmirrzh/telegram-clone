@@ -9,44 +9,38 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.shape.Circle?>
-<?import javafx.scene.text.Font?>
 
-<!-- This FXML is verified to match the ProfileController.java -->
-<VBox alignment="TOP_CENTER" spacing="20.0" styleClass="dialog-pane" stylesheets="@../css/styles.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.ProfileController">
+<!-- MODIFIED: Applied new design principles -->
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.ProfileController"
+      alignment="TOP_CENTER" spacing="20.0" styleClass="dialog-pane">
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
     </padding>
-    <children>
-        <Label styleClass="heading" text="User Profile">
-            <font>
-                <Font name="System Bold" size="18.0"/>
-            </font>
-        </Label>
-        <ImageView fx:id="profileImageView" fitHeight="100.0" fitWidth="100.0" pickOnBounds="true" preserveRatio="true">
-            <clip>
-                <Circle centerX="50.0" centerY="50.0" radius="50.0"/>
-            </clip>
-        </ImageView>
-        <Button fx:id="chooseImageButton" mnemonicParsing="false" onAction="#onChooseImage" text="Upload New Picture"/>
-        <VBox spacing="5.0">
-            <children>
-                <Label text="Display Name" styleClass="form-label"/>
-                <TextField fx:id="displayNameField" promptText="Your display name"/>
-            </children>
-        </VBox>
-        <VBox spacing="5.0">
-            <children>
-                <Label text="Bio" styleClass="form-label"/>
-                <TextArea fx:id="bioField" prefRowCount="3" promptText="Your bio..."/>
-            </children>
-        </VBox>
-        <HBox alignment="CENTER" spacing="10.0">
-            <children>
-                <Button fx:id="saveButton" defaultButton="true" onAction="#onSave" text="Save Changes"/>
-                <!-- Added styleClass="danger-button" to make the logout button red -->
-                <Button fx:id="logoutButton" cancelButton="true" onAction="#onLogout" styleClass="danger-button" text="Logout"/>
-            </children>
-        </HBox>
-        <Label fx:id="messageLabel" styleClass="error-label"/>
-    </children>
+
+    <Label styleClass="dialog-header" text="User Profile"/>
+
+    <ImageView fx:id="profileImageView" fitHeight="100.0" fitWidth="100.0" pickOnBounds="true" preserveRatio="true">
+        <clip>
+            <Circle centerX="50.0" centerY="50.0" radius="50.0"/>
+        </clip>
+    </ImageView>
+
+    <Button fx:id="chooseImageButton" mnemonicParsing="false" onAction="#onChooseImage" text="Upload Picture" styleClass="secondary-button"/>
+
+    <VBox spacing="5.0" style="-fx-max-width: 300;">
+        <Label text="Display Name" styleClass="form-label"/>
+        <TextField fx:id="displayNameField" promptText="Your display name" styleClass="chat-input-field"/>
+    </VBox>
+
+    <VBox spacing="5.0" style="-fx-max-width: 300;">
+        <Label text="Bio" styleClass="form-label"/>
+        <TextArea fx:id="bioField" prefRowCount="3" promptText="Your bio..." styleClass="chat-input-field"/>
+    </VBox>
+
+    <HBox alignment="CENTER" spacing="10.0">
+        <Button fx:id="saveButton" defaultButton="true" onAction="#onSave" text="Save Changes" styleClass="success-button"/>
+        <Button fx:id="logoutButton" cancelButton="true" onAction="#onLogout" styleClass="danger-button" text="Logout"/>
+    </HBox>
+
+    <Label fx:id="messageLabel" styleClass="error-label"/>
 </VBox>
