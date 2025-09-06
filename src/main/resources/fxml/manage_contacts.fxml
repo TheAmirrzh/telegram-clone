@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.ManageContactsController" spacing="15" styleClass="dialog-pane">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <!-- Header -->
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <Label text="Manage Contacts" styleClass="dialog-header" HBox.hgrow="ALWAYS"/>
+        <Label fx:id="contactCountLabel" styleClass="chat-status-label" text="0 contacts"/>
+    </HBox>
+
+    <!-- Search -->
+    <TextField fx:id="searchField" promptText="Search contacts..." prefWidth="500"/>
+
+    <!-- Contacts List -->
+    <ListView fx:id="contactsListView" VBox.vgrow="ALWAYS" prefHeight="400"/>
+
+    <!-- Action Buttons -->
+    <HBox spacing="10" alignment="CENTER">
+        <Button fx:id="addContactButton" text="Add Contact" onAction="#onAddContact" styleClass="button"/>
+        <Button fx:id="removeContactButton" text="Remove Contact" onAction="#onRemoveContact" styleClass="danger-button" disable="true"/>
+        <Button text="View Profile" onAction="#onViewProfile" styleClass="secondary-button"/>
+
+        <Region HBox.hgrow="ALWAYS"/>
+
+        <Button text="Close" onAction="#onClose" styleClass="secondary-button"/>
+    </HBox>
+
+    <!-- Message Label -->
+    <Label fx:id="messageLabel" styleClass="error-label"/>
+</VBox>

@@ -5,6 +5,7 @@ import com.telegramapp.dao.impl.GroupDAOImpl;
 import com.telegramapp.dao.impl.MessageDAOImpl;
 import com.telegramapp.dao.impl.UserDAOImpl;
 import com.telegramapp.model.*;
+import com.telegramapp.service.ContactService;
 import com.telegramapp.util.FX;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
@@ -59,13 +60,14 @@ public class MainController {
     @FXML private StackPane themeToggleContainer;
     @FXML private ImageView sunIcon;
     @FXML private ImageView moonIcon;
-    @FXML private ImageView logoImageView; // Reference to the logo
+    @FXML private ImageView logoImageView;
 
     private User currentUser;
     private UserDAOImpl userDAO;
     private GroupDAOImpl groupDAO;
     private ChannelDAOImpl channelDAO;
     private MessageDAOImpl messageDAO;
+    private ContactService contactService; // NEW: Contact service
     private ChatController activeChatController;
     private boolean isDarkMode = false;
     private ScheduledExecutorService scheduler;
@@ -73,13 +75,20 @@ public class MainController {
     private Image lightLogo;
     private Image darkLogo;
 
-
     @FXML
     public void initialize() {
         this.userDAO = new UserDAOImpl();
         this.groupDAO = new GroupDAOImpl();
         this.channelDAO = new ChannelDAOImpl();
         this.messageDAO = new MessageDAOImpl();
+
+        // NEW: Initialize contact service
+        try {
+            this.contactService = new ContactService();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            FX.showError("Failed to initialize contact service.");
+        }
 
         // Load logos once
         lightLogo = new Image(getClass().getResourceAsStream("/assets/telegram_logo.png"));
@@ -109,7 +118,6 @@ public class MainController {
         scheduler.scheduleAtFixedRate(this::loadAllChatLists, 5, 5, TimeUnit.SECONDS);
     }
 
-
     private void toggleTheme() {
         isDarkMode = !isDarkMode;
         FadeTransition sunFade = new FadeTransition(Duration.millis(300), sunIcon);
@@ -117,12 +125,12 @@ public class MainController {
 
         if (isDarkMode) {
             mainContainer.getStyleClass().add("theme-dark");
-            logoImageView.setImage(darkLogo); // Set dark logo
+            logoImageView.setImage(darkLogo);
             sunFade.setToValue(1);
             moonFade.setToValue(0);
         } else {
             mainContainer.getStyleClass().remove("theme-dark");
-            logoImageView.setImage(lightLogo); // Set light logo
+            logoImageView.setImage(lightLogo);
             sunFade.setToValue(0);
             moonFade.setToValue(1);
         }
@@ -274,8 +282,9 @@ public class MainController {
         if (currentUser == null) return;
         FX.runAsync(() -> {
             try {
-                List<User> users = userDAO.findAllExcept(currentUser.getId());
-                List<ChatListItem> userItems = users.stream()
+                // UPDATED: Load only contacts instead of all users
+                List<User> contacts = contactService.getContacts(currentUser.getId());
+                List<ChatListItem> userItems = contacts.stream()
                         .map(user -> {
                             try {
                                 Optional<Message> lastMessageOpt = messageDAO.findLastMessageForChat("USER", user.getId(), currentUser.getId());
@@ -416,6 +425,30 @@ public class MainController {
         }
     }
 
+    // NEW: Manage Contacts functionality
+    @FXML
+    private void onManageContacts() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/manage_contacts.fxml"));
+            Stage dialog = new Stage();
+            dialog.initModality(Modality.APPLICATION_MODAL);
+            dialog.initOwner(mainContainer.getScene().getWindow());
+            dialog.setTitle("Manage Contacts");
+            Scene scene = new Scene(loader.load());
+            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+            dialog.setScene(scene);
+            ManageContactsController ctrl = loader.getController();
+            ctrl.initData(currentUser, this);
+            dialog.showAndWait();
+
+            // Refresh chat lists after managing contacts
+            loadAllChatLists();
+        } catch (IOException e) {
+            e.printStackTrace();
+            FX.showError("Failed to open contacts manager.");
+        }
+    }
+
     @FXML
     private void onEditProfile() {
         try {
@@ -442,4 +475,3 @@ public class MainController {
         }
     }
 }
-

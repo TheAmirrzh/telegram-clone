@@ -148,12 +148,12 @@ public class MessageDAOImpl implements MessageDAO {
             ps.setString(1, m.getId());
             ps.setString(2, m.getSenderId());
             ps.setString(3, m.getReceiverId());
-            ps.setString(4, m.getReceiverType());
+            ps.setObject(4, m.getReceiverType(), java.sql.Types.OTHER);
             ps.setString(5, m.getContent());
             ps.setString(6, m.getMediaType());
             ps.setString(7, m.getMediaPath());
             ps.setTimestamp(8, Timestamp.valueOf(m.getTimestamp() == null ? LocalDateTime.now() : m.getTimestamp()));
-            ps.setString(9, m.getReadStatus());
+            ps.setObject(9, m.getReadStatus(), java.sql.Types.OTHER);
             ps.setString(10, m.getReplyToMessageId());
             ps.executeUpdate();
         }

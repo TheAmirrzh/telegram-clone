@@ -1,11 +1,15 @@
 package com.telegramapp.dao;
 
 import com.telegramapp.db.DBConnection;
-
+import com.zaxxer.hikari.HikariDataSource;
+import com.telegramapp.db.DBConnection;
+import com.telegramapp.model.Chat;
+import com.telegramapp.model.User;
 import java.sql.*;
 import java.util.UUID;
 
 public class ChatDAO {
+
     public UUID findOrCreatePrivateChat(UUID a, UUID b){
         UUID u1 = a.compareTo(b) < 0 ? a : b;
         UUID u2 = a.compareTo(b) < 0 ? b : a;

@@ -6,10 +6,7 @@ import com.telegramapp.model.User;
 
 import javax.sql.DataSource;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class UserDAOImpl implements UserDAO {
@@ -53,7 +50,6 @@ public class UserDAOImpl implements UserDAO {
         return users;
     }
 
-
     @Override
     public Optional<User> findByUsername(String username) throws SQLException {
         String sql = "SELECT * FROM users WHERE username = ?";
@@ -86,7 +82,8 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public void save(User user) throws SQLException {
-        String sql = "INSERT INTO users (id, username, password_hash, display_name, bio, profile_pic_path, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        // UPDATED: Added contacts column to INSERT
+        String sql = "INSERT INTO users (id, username, password_hash, display_name, bio, profile_pic_path, status, contacts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getId());
@@ -96,19 +93,22 @@ public class UserDAOImpl implements UserDAO {
             ps.setString(5, user.getBio());
             ps.setString(6, user.getProfilePicPath());
             ps.setString(7, user.getStatus());
+            ps.setString(8, user.getContactsAsString()); // NEW: Store contacts
             ps.executeUpdate();
         }
     }
 
     @Override
     public void update(User user) throws SQLException {
-        String sql = "UPDATE users SET display_name = ?, bio = ?, profile_pic_path = ? WHERE id = ?";
+        // UPDATED: Added contacts to UPDATE
+        String sql = "UPDATE users SET display_name = ?, bio = ?, profile_pic_path = ?, contacts = ? WHERE id = ?";
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getDisplayName());
             ps.setString(2, user.getBio());
             ps.setString(3, user.getProfilePicPath());
-            ps.setString(4, user.getId());
+            ps.setString(4, user.getContactsAsString()); // NEW: Update contacts
+            ps.setString(5, user.getId());
             ps.executeUpdate();
         }
     }
@@ -153,11 +153,65 @@ public class UserDAOImpl implements UserDAO {
         }
     }
 
+    // UPDATED: Enhanced mapping to handle contacts
     private User mapRowToUser(ResultSet rs) throws SQLException {
         User u = new User(rs.getString("id"), rs.getString("username"), rs.getString("password_hash"), rs.getString("display_name"));
         u.setBio(rs.getString("bio"));
         u.setProfilePicPath(rs.getString("profile_pic_path"));
         u.setStatus(rs.getString("status"));
+
+        // NEW: Load contacts from database
+        String contactsStr = rs.getString("contacts");
+        System.out.println("DEBUG: Loading user " + u.getId() + " with contacts string: '" + contactsStr + "'");
+        if (contactsStr != null) {
+            u.setContactsFromString(contactsStr);
+            System.out.println("DEBUG: After parsing, user " + u.getId() + " has contact IDs: " + u.getContactIds());
+        }
+
         return u;
+    }
+
+    // NEW: Method to get contacts for a user
+    public List<User> getContacts(String userId) throws SQLException {
+        System.out.println("DEBUG: getContacts called for userId: " + userId);
+        Optional<User> userOpt = findById(userId);
+        if (userOpt.isEmpty()) {
+            System.out.println("DEBUG: User not found for userId: " + userId);
+            return Collections.emptyList();
+        }
+
+        User user = userOpt.get();
+        Set<String> contactIds = user.getContactIds();
+        System.out.println("DEBUG: User " + userId + " has contact IDs: " + contactIds);
+
+        if (contactIds.isEmpty()) {
+            System.out.println("DEBUG: No contact IDs found for user: " + userId);
+            return Collections.emptyList();
+        }
+
+        List<User> contacts = findByIds(new ArrayList<>(contactIds));
+        System.out.println("DEBUG: Found " + contacts.size() + " contacts for user: " + userId);
+        return contacts;
+    }
+
+    // NEW: Method to search users for adding contacts
+    public List<User> searchUsersForContacts(String query, String currentUserId) throws SQLException {
+        String sql = "SELECT * FROM users WHERE id <> ? AND (username LIKE ? OR display_name LIKE ?) ORDER BY username LIMIT 50";
+        List<User> users = new ArrayList<>();
+        String searchPattern = "%" + query.toLowerCase() + "%";
+
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, currentUserId);
+            ps.setString(2, searchPattern);
+            ps.setString(3, searchPattern);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    users.add(mapRowToUser(rs));
+                }
+            }
+        }
+        return users;
     }
 }

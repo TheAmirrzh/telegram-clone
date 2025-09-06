@@ -21,7 +21,7 @@
       <Insets top="8" right="12" bottom="8" left="12"/>
     </padding>
 
-    <!-- FIX: Added fx:id to the logo ImageView -->
+    <!-- Logo -->
     <ImageView fx:id="logoImageView" fitHeight="40" fitWidth="40">
       <image>
         <Image url="@../assets/telegram_logo.png" />
@@ -39,14 +39,18 @@
       <ImageView fx:id="profileImageView" fitHeight="40" fitWidth="40"/>
     </HBox>
 
+    <!-- Action Buttons -->
     <HBox spacing="10" alignment="CENTER_LEFT">
       <padding>
         <Insets left="20"/>
       </padding>
+      <!-- NEW: Manage Contacts button with contact icon -->
+      <Button text="📞 Contacts" onAction="#onManageContacts" styleClass="button"/>
       <Button text="New Group" onAction="#onNewGroup" styleClass="button"/>
       <Button text="New Channel" onAction="#onNewChannel" styleClass="button"/>
     </HBox>
 
+    <!-- Theme Toggle -->
     <StackPane fx:id="themeToggleContainer" styleClass="theme-toggle-container">
       <ImageView fx:id="sunIcon" styleClass="theme-icon" fitWidth="20" fitHeight="20">
         <image><Image url="@../assets/sun_icon.png"/></image>
@@ -62,11 +66,12 @@
     <items>
       <!-- Sidebar with lists -->
       <VBox styleClass="sidebar">
+        <!-- UPDATED: Changed label from "Users" to "Contacts" -->
         <VBox VBox.vgrow="ALWAYS">
           <padding>
             <Insets top="8" right="8" bottom="8" left="8"/>
           </padding>
-          <Label text="Users" styleClass="list-header"/>
+          <Label text="Contacts" styleClass="list-header"/>
           <ListView fx:id="usersListView" VBox.vgrow="ALWAYS"/>
         </VBox>
         <VBox VBox.vgrow="ALWAYS">
@@ -88,7 +93,7 @@
       <!-- Main chat area -->
       <StackPane fx:id="chatArea" styleClass="chat-area-background">
         <children>
-          <Label fx:id="chatAreaPlaceholder" text="Select a chat to begin messaging"
+          <Label fx:id="chatAreaPlaceholder" text="Select a contact to begin messaging"
                  styleClass="chat-area-placeholder"/>
         </children>
       </StackPane>
