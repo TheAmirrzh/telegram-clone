@@ -1,3 +1,5 @@
+// In src/main/java/com/telegramapp/ui/controllers/AddContactController.java
+
 package com.telegramapp.ui.controllers;
 
 import com.telegramapp.model.User;
@@ -35,13 +37,21 @@ public class AddContactController {
         setupSearchListener();
         setupSelectionListener();
 
-        // Focus search field
+        // --- NEW ---
+        // Load all users when the window is first opened.
+        // We call searchUsers with an empty string to get all results.
+        searchUsers("");
+
+        // Focus the search field for immediate typing
         searchField.requestFocus();
     }
 
     public void initData(User currentUser, ContactService contactService) {
         this.currentUser = currentUser;
         this.contactService = contactService;
+        // --- NEW ---
+        // Refresh the user list now that we have the current user's data.
+        searchUsers("");
     }
 
     private void setupUsersList() {
@@ -103,12 +113,10 @@ public class AddContactController {
 
     private void setupSearchListener() {
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && newVal.trim().length() >= 2) {
-                searchUsers(newVal.trim());
-            } else {
-                usersListView.getItems().clear();
-                messageLabel.setText("Enter at least 2 characters to search");
-            }
+            // --- MODIFIED ---
+            // The search now works correctly for both initial load (empty string)
+            // and subsequent filtering.
+            searchUsers(newVal.trim());
         });
     }
 
@@ -140,6 +148,9 @@ public class AddContactController {
     private void searchUsers(String query) {
         FX.runAsync(() -> {
             try {
+                // --- MODIFIED ---
+                // The contactService.searchUsersForContacts method will now handle both
+                // empty and non-empty queries correctly.
                 List<User> results = contactService.searchUsersForContacts(query, currentUser.getId());
 
                 // Filter out existing contacts for cleaner UI
@@ -161,9 +172,17 @@ public class AddContactController {
         }, users -> {
             usersListView.getItems().setAll(users);
             if (users.isEmpty()) {
-                messageLabel.setText("No users found matching '" + query + "'");
+                if (query.isEmpty()) {
+                    messageLabel.setText("No new users to add.");
+                } else {
+                    messageLabel.setText("No users found matching '" + query + "'");
+                }
             } else {
-                messageLabel.setText("Found " + users.size() + " user(s)");
+                if (query.isEmpty()) {
+                    messageLabel.setText("Showing all available users.");
+                } else {
+                    messageLabel.setText("Found " + users.size() + " user(s)");
+                }
             }
         }, error -> {
             messageLabel.setText("Error searching users: " + error.getMessage());
@@ -190,10 +209,7 @@ public class AddContactController {
                 messageLabel.setText(selectedUser.getDisplayName() + " added to contacts!");
 
                 // Refresh the list to show updated status
-                String currentQuery = searchField.getText();
-                if (currentQuery != null && currentQuery.trim().length() >= 2) {
-                    searchUsers(currentQuery.trim());
-                }
+                searchUsers(searchField.getText().trim());
 
                 // Close dialog after a short delay
                 new Thread(() -> {

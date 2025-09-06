@@ -14,29 +14,24 @@
         <Insets top="20" right="20" bottom="20" left="20"/>
     </padding>
 
-    <!-- Header -->
     <HBox alignment="CENTER_LEFT" spacing="10">
-        <Label text="Manage Contacts" styleClass="dialog-header" HBox.hgrow="ALWAYS"/>
-        <Label fx:id="contactCountLabel" styleClass="chat-status-label" text="0 contacts"/>
+        <Label text="Your Contacts" styleClass="dialog-header" HBox.hgrow="ALWAYS"/>
+        <Label fx:id="contactCountLabel" styleClass="contact-count-badge" text="0 contacts"/>
     </HBox>
 
-    <!-- Search -->
-    <TextField fx:id="searchField" promptText="Search contacts..." prefWidth="500"/>
+    <TextField fx:id="searchField" promptText="Filter your contacts..." prefWidth="500"/>
 
-    <!-- Contacts List -->
     <ListView fx:id="contactsListView" VBox.vgrow="ALWAYS" prefHeight="400"/>
 
-    <!-- Action Buttons -->
     <HBox spacing="10" alignment="CENTER">
-        <Button fx:id="addContactButton" text="Add Contact" onAction="#onAddContact" styleClass="button"/>
+        <Button fx:id="addContactButton" text="Add New Contact" onAction="#onAddContact" styleClass="button"/>
         <Button fx:id="removeContactButton" text="Remove Contact" onAction="#onRemoveContact" styleClass="danger-button" disable="true"/>
         <Button text="View Profile" onAction="#onViewProfile" styleClass="secondary-button"/>
 
         <Region HBox.hgrow="ALWAYS"/>
 
-        <Button text="Close" onAction="#onClose" styleClass="secondary-button"/>
+        <Button text="Done" onAction="#onClose" styleClass="secondary-button"/>
     </HBox>
 
-    <!-- Message Label -->
     <Label fx:id="messageLabel" styleClass="error-label"/>
 </VBox>

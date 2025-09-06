@@ -33,16 +33,16 @@ public class TypingDAOImpl implements TypingDAO {
     @Override
     public List<String> getTypingUsers(String chatId, String currentUserId, int secondsWindow) throws SQLException {
         List<String> typingUsers = new ArrayList<>();
-        // Exclude the current user from the list of typing users
-        String sql = "SELECT user_id FROM typing_status WHERE chat_id = ? AND user_id <> ? AND last_ts >= NOW() - INTERVAL '? seconds'";
 
-        // A simple way to inject the interval value safely. Prepared statements don't work well with INTERVAL.
-        sql = sql.replace("?", String.valueOf(secondsWindow));
+        // FIXED: The SQL now correctly uses placeholders for all values.
+        String sql = "SELECT user_id FROM typing_status WHERE chat_id = ? AND user_id <> ? AND last_typed >= NOW() - (? * INTERVAL '1 second')";
 
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, chatId);
             ps.setString(2, currentUserId);
+            ps.setInt(3, secondsWindow); // Use setInt for the interval
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     typingUsers.add(rs.getString("user_id"));

@@ -195,10 +195,12 @@ public class UserDAOImpl implements UserDAO {
     }
 
     // NEW: Method to search users for adding contacts
+
     public List<User> searchUsersForContacts(String query, String currentUserId) throws SQLException {
-        String sql = "SELECT * FROM users WHERE id <> ? AND (username LIKE ? OR display_name LIKE ?) ORDER BY username LIMIT 50";
+        // FIXED: Query is now case-insensitive using LOWER()
+        String sql = "SELECT * FROM users WHERE id <> ? AND (LOWER(username) LIKE LOWER(?) OR LOWER(display_name) LIKE LOWER(?)) ORDER BY username LIMIT 50";
         List<User> users = new ArrayList<>();
-        String searchPattern = "%" + query.toLowerCase() + "%";
+        String searchPattern = "%" + query + "%";
 
         try (Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {

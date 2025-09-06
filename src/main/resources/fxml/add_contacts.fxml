@@ -14,22 +14,17 @@
         <Insets top="20" right="20" bottom="20" left="20"/>
     </padding>
 
-    <!-- Header -->
-    <Label text="Add Contact" styleClass="dialog-header"/>
+    <Label text="Add New Contact" styleClass="dialog-header"/>
 
-    <!-- Instructions -->
-    <Label text="Search for users by username or display name" styleClass="form-label"/>
+    <Label text="Find people by their username or display name." styleClass="form-label"/>
 
-    <!-- Search Field -->
-    <TextField fx:id="searchField" promptText="Search users..." prefWidth="450"/>
+    <TextField fx:id="searchField" promptText="Search for users..." prefWidth="450"/>
 
-    <!-- Users List -->
     <ListView fx:id="usersListView" VBox.vgrow="ALWAYS" prefHeight="300"/>
 
-    <!-- Action Buttons -->
     <HBox spacing="10" alignment="CENTER_RIGHT">
         <Label fx:id="messageLabel" styleClass="error-label" HBox.hgrow="ALWAYS"/>
-        <Button text="Cancel" onAction="#onCancel" styleClass="secondary-button"/>
-        <Button fx:id="addButton" text="Add to Contacts" onAction="#onAdd" styleClass="button" disable="true"/>
+        <Button text="Close" onAction="#onCancel" styleClass="secondary-button"/>
+        <Button fx:id="addButton" text="Add Contact" onAction="#onAdd" styleClass="success-button" disable="true"/>
     </HBox>
 </VBox>
