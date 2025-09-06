@@ -8,9 +8,10 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.Region?>
+<?import javafx.scene.shape.SVGPath?>
 
 <BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.ChatController">
   <top>
@@ -47,9 +48,27 @@
           <padding>
             <Insets bottom="10" left="10" right="10" top="10" />
           </padding>
-          <Button onAction="#onAttach" styleClass="attach-button" text="+" />
-          <TextField fx:id="messageField" onAction="#onSend" promptText="Write a message..." HBox.hgrow="ALWAYS" />
-          <Button onAction="#onSend" styleClass="send-button" text="Send" />
+
+          <!-- DEFINITIVE FIX: SVG is placed inside a StackPane -->
+          <Button onAction="#onAttach" styleClass="icon-button">
+            <graphic>
+              <StackPane>
+                <SVGPath content="M12 5V19M5 12H19" styleClass="icon-button-svg" />
+              </StackPane>
+            </graphic>
+          </Button>
+
+          <TextField fx:id="messageField" onAction="#onSend" promptText="Write a message..." HBox.hgrow="ALWAYS" styleClass="chat-input-field"/>
+
+          <!-- DEFINITIVE FIX: SVG is placed inside a StackPane -->
+          <Button onAction="#onSend" styleClass="icon-button">
+            <graphic>
+              <StackPane>
+                <SVGPath content="M 2 21 L 23 12 L 2 3 L 2 10 L 17 12 L 2 14 Z" styleClass="icon-button-svg" />
+              </StackPane>
+            </graphic>
+          </Button>
+
         </HBox>
         <Button fx:id="joinChannelButton" managed="false" onAction="#onJoinChannel" text="Join Channel" visible="false" />
       </StackPane>

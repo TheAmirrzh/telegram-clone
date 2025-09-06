@@ -3,6 +3,8 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.HBox?>
@@ -15,40 +17,25 @@
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.telegramapp.ui.controllers.MainController"
       styleClass="main-container" fx:id="mainContainer">
 
-  <!-- Top Toolbar -->
+  <!-- Streamlined Top Toolbar -->
   <HBox alignment="CENTER_LEFT" styleClass="top-toolbar">
     <padding>
       <Insets top="8" right="12" bottom="8" left="12"/>
     </padding>
 
-    <!-- Logo -->
-    <ImageView fx:id="logoImageView" fitHeight="40" fitWidth="40">
-      <image>
-        <Image url="@../assets/telegram_logo.png" />
-      </image>
-    </ImageView>
-
-    <Region HBox.hgrow="ALWAYS"/>
-
-    <!-- Profile Bubble -->
-    <HBox fx:id="profileContainer" alignment="CENTER_RIGHT" styleClass="profile-bubble" spacing="10">
-      <VBox alignment="CENTER_RIGHT">
+    <!-- Profile Bubble (now on the left) -->
+    <HBox fx:id="profileContainer" alignment="CENTER_LEFT" styleClass="profile-bubble" spacing="10" HBox.hgrow="ALWAYS">
+      <ImageView fx:id="profileImageView" fitHeight="40" fitWidth="40"/>
+      <VBox alignment="CENTER_LEFT">
         <Label fx:id="profileNameLabel" text="Profile Name"/>
         <Label fx:id="profileUsernameLabel" text="@username" styleClass="username-label"/>
       </VBox>
-      <ImageView fx:id="profileImageView" fitHeight="40" fitWidth="40"/>
     </HBox>
 
-    <!-- Action Buttons -->
-    <HBox spacing="10" alignment="CENTER_LEFT">
-      <padding>
-        <Insets left="20"/>
-      </padding>
-      <!-- NEW: Manage Contacts button with contact icon -->
-      <Button text="📞 Contacts" onAction="#onManageContacts" styleClass="button"/>
-      <Button text="New Group" onAction="#onNewGroup" styleClass="button"/>
-      <Button text="New Channel" onAction="#onNewChannel" styleClass="button"/>
-    </HBox>
+    <Region HBox.hgrow="ALWAYS"/>
+
+    <!-- Contacts Button -->
+    <Button text="Contacts" onAction="#onManageContacts" styleClass="button"/>
 
     <!-- Theme Toggle -->
     <StackPane fx:id="themeToggleContainer" styleClass="theme-toggle-container">
@@ -66,7 +53,23 @@
     <items>
       <!-- Sidebar with lists -->
       <VBox styleClass="sidebar">
-        <!-- UPDATED: Changed label from "Users" to "Contacts" -->
+
+        <!-- Sidebar Header with New Chat Button -->
+        <HBox alignment="CENTER_LEFT" styleClass="sidebar-header">
+          <padding><Insets top="8" right="8" bottom="8" left="15"/></padding>
+          <Label text="Chats" styleClass="dialog-header"/>
+          <Region HBox.hgrow="ALWAYS"/>
+          <MenuButton text="+" styleClass="button">
+            <items>
+              <!-- *** MODIFIED: ADDED NEW CHAT OPTION *** -->
+              <MenuItem text="New Chat" onAction="#onNewChat"/>
+              <MenuItem text="New Group" onAction="#onNewGroup"/>
+              <MenuItem text="New Channel" onAction="#onNewChannel"/>
+            </items>
+          </MenuButton>
+        </HBox>
+
+        <!-- Lists Container -->
         <VBox VBox.vgrow="ALWAYS">
           <padding>
             <Insets top="8" right="8" bottom="8" left="8"/>
@@ -93,8 +96,15 @@
       <!-- Main chat area -->
       <StackPane fx:id="chatArea" styleClass="chat-area-background">
         <children>
-          <Label fx:id="chatAreaPlaceholder" text="Select a contact to begin messaging"
-                 styleClass="chat-area-placeholder"/>
+          <VBox alignment="CENTER" spacing="10">
+            <ImageView fitHeight="100" fitWidth="100">
+              <image>
+                <Image url="@../assets/telegram_logo.png" />
+              </image>
+            </ImageView>
+            <Label fx:id="chatAreaPlaceholder" text="Select a contact to begin messaging"
+                   styleClass="chat-area-placeholder"/>
+          </VBox>
         </children>
       </StackPane>
     </items>

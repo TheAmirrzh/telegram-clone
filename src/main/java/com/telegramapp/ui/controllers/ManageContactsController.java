@@ -48,6 +48,19 @@ public class ManageContactsController {
         setupContactsList();
         setupSearchListener();
         setupSelectionListener();
+
+        // --- NEW: Add a double-click listener to open a chat ---
+        contactsListView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) { // Check for double-click
+                User selectedContact = contactsListView.getSelectionModel().getSelectedItem();
+                if (selectedContact != null && mainController != null) {
+                    // Tell the MainController to open the chat
+                    mainController.openPrivateChatWithUser(selectedContact);
+                    // Close this dialog window
+                    onClose();
+                }
+            }
+        });
     }
 
     public void initData(User currentUser, MainController mainController) {

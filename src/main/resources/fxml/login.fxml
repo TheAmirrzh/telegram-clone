@@ -3,18 +3,25 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
 
-<VBox spacing="12" alignment="CENTER" styleClass="dialog-pane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.ui.controllers.LoginController">
-  <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+<VBox spacing="20" alignment="CENTER" styleClass="login-container" xmlns:fx="http://javafx.com/fxml" fx:controller="com.telegramapp.ui.controllers.LoginController">
 
-  <Label text="Telegram — Mini" style="-fx-font-size:18px; -fx-font-weight:bold;"/>
+  <ImageView styleClass="login-logo">
+    <image>
+      <Image url="@../assets/telegram_logo.png" />
+    </image>
+  </ImageView>
 
-  <TextField fx:id="usernameField" promptText="Username" prefWidth="300"/>
-  <PasswordField fx:id="passwordField" promptText="Password" prefWidth="300"/>
+  <Label text="Welcome to Telegram" styleClass="login-title"/>
+
+  <TextField fx:id="usernameField" promptText="Username" prefWidth="300" styleClass="login-field"/>
+  <PasswordField fx:id="passwordField" promptText="Password" prefWidth="300" styleClass="login-field"/>
 
   <HBox spacing="10" alignment="CENTER">
     <Button text="Login" onAction="#onLogin" prefWidth="120"/>
-    <Button text="Register" onAction="#onRegister" prefWidth="120"/>
+    <Button text="Register" onAction="#onRegister" prefWidth="120" styleClass="secondary-button"/>
   </HBox>
 
   <Label fx:id="messageLabel" style="-fx-text-fill: #EF4444;"/>

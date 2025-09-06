@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -278,24 +279,37 @@ public class MainController {
         });
     }
 
+    // In src/main/java/com/telegramapp/ui/controllers/MainController.java
+
     public void loadAllChatLists() {
         if (currentUser == null) return;
         FX.runAsync(() -> {
             try {
-                // UPDATED: Load only contacts instead of all users
+                // Get all contacts
                 List<User> contacts = contactService.getContacts(currentUser.getId());
                 List<ChatListItem> userItems = contacts.stream()
                         .map(user -> {
                             try {
+                                // Find the last message and unread count
                                 Optional<Message> lastMessageOpt = messageDAO.findLastMessageForChat("USER", user.getId(), currentUser.getId());
                                 int unreadCount = messageDAO.getUnreadMessageCount("USER", user.getId(), currentUser.getId());
-                                String msgText = lastMessageOpt.map(Message::getContent).orElse("No messages yet");
-                                LocalDateTime ts = lastMessageOpt.map(Message::getTimestamp).orElse(LocalDateTime.MIN);
-                                return new ChatListItem(user, msgText, unreadCount, ts);
+
+                                // *** MODIFIED LOGIC HERE ***
+                                // Only include the user in the list if a conversation exists
+                                if (lastMessageOpt.isPresent()) {
+                                    String msgText = lastMessageOpt.get().getContent();
+                                    LocalDateTime ts = lastMessageOpt.get().getTimestamp();
+                                    return new ChatListItem(user, msgText, unreadCount, ts);
+                                } else {
+                                    // If there's no message, return null to filter them out
+                                    return null;
+                                }
                             } catch (SQLException e) {
                                 throw new RuntimeException(e);
                             }
                         })
+                        // Filter out the null entries (users with no messages)
+                        .filter(Objects::nonNull)
                         .collect(Collectors.toList());
 
                 List<Group> groups = groupDAO.findByUser(currentUser.getId());
@@ -474,4 +488,21 @@ public class MainController {
             scheduler.shutdownNow();
         }
     }
+    @FXML
+    private void onNewChat() {
+        onManageContacts();
+    }
+    public void openPrivateChatWithUser(User user) {
+        if (user != null) {
+            // Clear selections in the list views to avoid visual confusion
+            usersListView.getSelectionModel().clearSelection();
+            groupsListView.getSelectionModel().clearSelection();
+            channelsListView.getSelectionModel().clearSelection();
+
+            // Directly open the chat view for the selected user
+            openChatView("USER", user.getId());
+        }
+    }
+
+
 }
